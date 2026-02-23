@@ -487,6 +487,14 @@
     50% { opacity: 0.6; }
   }
 
+  .my-seat-row {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
   /* 내 영역 */
   .my-area {
     width: 100%;
@@ -1308,6 +1316,7 @@ function renderGameScreen(state) {
       <div class="table-right-space">${rightHTML}</div>
     </div>
     <div class="opponents-bottom">${bottomHTML}</div>
+    <div class="my-seat-row">${me ? oppCardHTML(me, state) : ''}</div>
     <div class="my-area">
       <div class="my-info">
         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
