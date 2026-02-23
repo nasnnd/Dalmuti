@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>달무티 온라인</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #1a1210;
+    --surface: #251916;
+    --surface2: #2e1e1a;
+    --gold: #c9a84c;
+    --gold-light: #e4c97a;
+    --red: #c0392b;
+    --green: #27ae60;
+    --text: #f0e6d3;
+    --text-dim: #9e8a74;
+    --card-bg: #fdf6e3;
+    --card-border: #c9a84c;
+    --table: #3d2314;
+    --table-felt: #2c5f2e;
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── 화면 전환 ── */
+  .screen { display: none; width: 100vw; height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ══════════════════════════════════════════
+     로비 화면
+  ══════════════════════════════════════════ */
+  #lobby-screen {
+    flex-direction: row;
+    background: linear-gradient(135deg, #1a1210 0%, #2c1810 50%, #1a1210 100%);
+  }
+
+  .lobby-left {
+    width: 340px;
+    min-width: 340px;
+    padding: 32px 28px;
+    border-right: 1px solid rgba(201,168,76,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background: rgba(0,0,0,0.3);
+  }
+
+  .lobby-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--gold);
+    text-align: center;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(201,168,76,0.5);
+    margin-bottom: 8px;
+  }
+  .lobby-sub {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-top: -12px;
+    margin-bottom: 8px;
+  }
+
+  .nick-section { display: flex; flex-direction: column; gap: 8px; }
+  .nick-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(201,168,76,0.1);
+    border: 1px solid rgba(201,168,76,0.3);
+    border-radius: var(--radius);
+    font-size: 15px;
+    color: var(--gold-light);
+    min-height: 44px;
+  }
+  .nick-display span { flex: 1; font-weight: 600; }
+
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 12px; color: var(--text-dim); letter-spacing: 1px; }
+
+  input[type=text], input[type=number], select {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,168,76,0.25);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, select:focus { border-color: var(--gold); }
+  select option { background: #2c1810; }
+
+  .btn {
+    padding: 11px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-gold {
+    background: linear-gradient(135deg, var(--gold), #a8832a);
+    color: #1a1210;
+  }
+  .btn-gold:hover:not(:disabled) { filter: brightness(1.15); transform: translateY(-1px); }
+  .btn-outline {
+    background: transparent;
+    border: 1px solid rgba(201,168,76,0.4);
+    color: var(--gold);
+  }
+  .btn-outline:hover:not(:disabled) { background: rgba(201,168,76,0.1); }
+  .btn-red {
+    background: linear-gradient(135deg, #c0392b, #922b21);
+    color: white;
+  }
+  .btn-red:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn-green {
+    background: linear-gradient(135deg, #27ae60, #1e8449);
+    color: white;
+  }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  .create-form { display: flex; flex-direction: column; gap: 10px; }
+
+  /* 방 목록 */
+  .lobby-right {
+    flex: 1;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+  .lobby-rooms-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 18px;
+    color: var(--gold);
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+    padding-bottom: 12px;
+  }
+  .room-list { display: flex; flex-direction: column; gap: 10px; }
+  .room-card {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,168,76,0.15);
+    border-radius: var(--radius);
+    gap: 12px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .room-card:hover { background: rgba(201,168,76,0.07); border-color: rgba(201,168,76,0.3); }
+  .room-title { font-weight: 600; font-size: 15px; flex: 1; }
+  .room-meta { font-size: 12px; color: var(--text-dim); }
+  .room-badge {
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-lobby { background: rgba(39,174,96,0.2); color: #2ecc71; }
+  .badge-playing { background: rgba(192,57,43,0.2); color: #e74c3c; }
+  .empty-rooms { text-align: center; color: var(--text-dim); padding: 40px; font-size: 14px; }
+
+  /* ══════════════════════════════════════════
+     게임방 화면
+  ══════════════════════════════════════════ */
+  #room-screen {
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .room-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    background: rgba(0,0,0,0.5);
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+    gap: 12px;
+    min-height: 52px;
+  }
+  .room-header-title { font-family: 'Noto Serif KR', serif; font-weight: 700; color: var(--gold); font-size: 16px; }
+  .room-header-meta { font-size: 12px; color: var(--text-dim); }
+  .room-header-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  .room-body {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* 대기실 */
+  .waiting-room {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 24px;
+  }
+  .player-list-title { font-family: 'Noto Serif KR', serif; color: var(--gold); font-size: 18px; }
+  .player-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  .player-slot {
+    padding: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px dashed rgba(201,168,76,0.2);
+    border-radius: var(--radius);
+    text-align: center;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .player-slot.filled {
+    border-style: solid;
+    border-color: rgba(201,168,76,0.3);
+    background: rgba(201,168,76,0.06);
+  }
+  .player-slot.ready-yes { border-color: rgba(39,174,96,0.5); background: rgba(39,174,96,0.08); }
+  .player-slot-name { font-weight: 700; font-size: 14px; }
+  .player-slot-host { font-size: 10px; color: var(--gold); }
+  .ready-badge { font-size: 11px; color: #2ecc71; }
+  .not-ready-badge { font-size: 11px; color: var(--text-dim); }
+
+  .waiting-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  /* ══════════════════════════════════════════
+     뽑기 단계
+  ══════════════════════════════════════════ */
+  .draw-phase {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 32px;
+  }
+  .draw-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 22px;
+    color: var(--gold);
+  }
+  .draw-desc { font-size: 13px; color: var(--text-dim); }
+  .draw-deck-btn {
+    width: 100px;
+    height: 140px;
+    background: linear-gradient(135deg, #8B2500, #5c1a00);
+    border: 3px solid var(--gold);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .draw-deck-btn:hover:not(:disabled) { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(201,168,76,0.3); }
+  .draw-deck-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .draw-results-list {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 500px;
+  }
+  .draw-result-item {
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 8px;
+    font-size: 13px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .draw-result-num {
+    font-weight: 900;
+    font-size: 18px;
+    color: var(--gold);
+  }
+
+  /* ══════════════════════════════════════════
+     교환 단계
+  ══════════════════════════════════════════ */
+  .exchange-phase {
+    width: 100%;
+    max-width: 800px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .exchange-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 20px;
+    color: var(--gold);
+    text-align: center;
+  }
+  .exchange-info {
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-dim);
+    padding: 10px;
+    background: rgba(201,168,76,0.07);
+    border-radius: 8px;
+  }
+  .exchange-hand {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  .exchange-actions { display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; }
+
+  /* ══════════════════════════════════════════
+     게임 플레이 화면
+  ══════════════════════════════════════════ */
+  #game-screen {
+    flex-direction: column;
+    background: radial-gradient(ellipse at 50% 30%, #2a1810 0%, #1a1210 70%);
+  }
+
+  .game-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: rgba(0,0,0,0.6);
+    border-bottom: 1px solid rgba(201,168,76,0.15);
+    gap: 16px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .game-round-info { color: var(--gold); font-weight: 700; }
+  .game-turn-info { margin-left: auto; }
+
+  .game-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  /* 상대 플레이어 영역 - 상단/하단 */
+  .opponents-top,
+  .opponents-bottom {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    width: 100%;
+    max-width: 760px;
+  }
+
+  /* 테이블 행 (테이블 + 우측 단독 자리) */
+  .table-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 10px;
+    flex: 1;
+  }
+  .table-left-space {
+    width: 120px;
+    flex-shrink: 0;
+  }
+  .table-right-space {
+    width: 120px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 우측 단독 자리 (홀수 인원 중간 계급) */
+  .opponents-side-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .opponent-card {
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: var(--radius);
+    text-align: center;
+    min-width: 100px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .opponent-card.current-turn {
+    border-color: var(--gold);
+    background: rgba(201,168,76,0.12);
+    box-shadow: 0 0 16px rgba(201,168,76,0.25);
+  }
+  .opponent-card.finished {
+    opacity: 0.5;
+    border-style: dashed;
+  }
+  .opp-rank { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
+  .opp-name { font-weight: 700; font-size: 13px; }
+  .opp-count { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+  .opp-finish { font-size: 10px; color: var(--gold); margin-top: 2px; }
+
+  /* 테이블 */
+  .game-table {
+    flex: 1;
+    max-width: 560px;
+    background: radial-gradient(ellipse, #2c5f2e 0%, #1d4620 60%, #142f16 100%);
+    border-radius: 60px;
+    border: 4px solid rgba(201,168,76,0.35);
+    box-shadow: inset 0 4px 30px rgba(0,0,0,0.5), 0 4px 20px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    gap: 10px;
+    padding: 20px;
+    position: relative;
+  }
+  .table-cards {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .table-msg {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    font-style: italic;
+  }
+  .my-turn-msg {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light);
+    background: rgba(0,0,0,0.5);
+    padding: 4px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .my-seat-row {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  /* 내 영역 */
+  .my-area {
+    width: 100%;
+    max-width: 720px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .my-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .my-name-badge {
+    padding: 5px 14px;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.35);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold-light);
+  }
+  .my-card-count {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .hand-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+
+  .game-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* ══════════════════════════════════════════
+     카드 컴포넌트
+  ══════════════════════════════════════════ */
+  .card {
+    width: 64px;
+    height: 88px;
+    background: var(--card-bg);
+    border: 1.5px solid var(--card-border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    user-select: none;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 6px 16px rgba(0,0,0,0.5); }
+  .card.selected {
+    transform: translateY(-10px);
+    border-color: #c0392b;
+    box-shadow: 0 8px 20px rgba(192,57,43,0.4);
+  }
+  .card.disabled { cursor: default; opacity: 0.7; }
+  .card.disabled:hover { transform: none; }
+  .card-num {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: #2c1810;
+    line-height: 1;
+  }
+  .card-emoji { font-size: 18px; line-height: 1; }
+  .card-name { font-size: 9px; color: #5a3a2a; text-align: center; line-height: 1.2; margin-top: 2px; }
+  .card.jester { background: linear-gradient(135deg, #fff9f0, #fef0d0); }
+  .card.jester .card-num { color: #8B0000; }
+
+  /* 테이블 위 카드 (더 작게) */
+  .card-sm {
+    width: 50px;
+    height: 70px;
+    border-radius: 6px;
+  }
+  .card-sm .card-num { font-size: 15px; }
+  .card-sm .card-emoji { font-size: 13px; }
+  .card-sm .card-name { font-size: 8px; }
+
+  /* ══════════════════════════════════════════
+     팝업 / 모달
+  ══════════════════════════════════════════ */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(3px);
+  }
+  .overlay.hidden { display: none; }
+
+  .modal {
+    background: linear-gradient(160deg, #2c1810, #1a1210);
+    border: 1px solid rgba(201,168,76,0.35);
+    border-radius: 16px;
+    padding: 32px;
+    min-width: 340px;
+    max-width: 560px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+  .modal-title {
+    font-family: 'Noto Serif KR', serif;
+    font-size: 22px;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .modal-body { margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; }
+
+  /* 랭킹 팝업 */
+  .rank-table { width: 100%; border-collapse: collapse; }
+  .rank-table th, .rank-table td {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(201,168,76,0.1);
+  }
+  .rank-table th { color: var(--gold); font-weight: 600; }
+  .rank-1st { color: #FFD700; font-weight: 900; }
+  .rank-2nd { color: #C0C0C0; }
+  .rank-3rd { color: #CD7F32; }
+
+  /* 알림 토스트 */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(44,24,16,0.95);
+    border: 1px solid rgba(201,168,76,0.4);
+    color: var(--text);
+    padding: 12px 24px;
+    border-radius: 30px;
+    font-size: 14px;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  #toast.show { opacity: 1; }
+
+  /* 혁명 알림 */
+  #revolution-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    background: linear-gradient(135deg, #8B0000, #c0392b);
+    color: white;
+    padding: 20px 40px;
+    border-radius: 16px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 28px;
+    font-weight: 900;
+    z-index: 300;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.4s;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(192,57,43,0.6);
+  }
+  #revolution-banner.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #orientation-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  #orientation-guard.hidden { display: none; }
+  .orientation-box {
+    max-width: 420px;
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 14px;
+    padding: 20px;
+    background: linear-gradient(160deg, #2c1810, #1a1210);
+  }
+  .orientation-title {
+    color: var(--gold);
+    font-size: 22px;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif KR', serif;
+  }
+  .orientation-desc { color: var(--text-dim); font-size: 14px; }
+
+  /* 스크롤바 */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
+
+  /* 반응형 */
+  @media (max-width: 768px) {
+    #lobby-screen { flex-direction: column; overflow-y: auto; }
+    .lobby-left { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(201,168,76,0.2); }
+    .player-slots { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(201,168,76,0.15);
+    margin: 4px 0;
+  }
+
+  .game-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     로비 화면
+══════════════════════════════════════════ -->
+<div id="lobby-screen" class="screen active">
+  <div class="lobby-left">
+    <div>
+      <div class="lobby-title">달무티</div>
+      <div class="lobby-sub">DALMUTI ONLINE</div>
+    </div>
+
+    <div class="nick-section">
+      <div class="field-label">닉네임</div>
+      <div class="nick-display">
+        <span id="nick-show">미설정</span>
+        <button class="btn btn-outline btn-sm" id="nick-edit-btn" onclick="openNickEdit()">변경</button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="create-form">
+      <div class="field-label">방 만들기</div>
+      <div class="field-group">
+        <div class="field-label">방 제목</div>
+        <input type="text" id="room-title-input" placeholder="달무티 파티" maxlength="20">
+      </div>
+      <div class="field-group">
+        <div class="field-label">라운드 수</div>
+        <select id="room-rounds-select">
+          <option value="3">3라운드</option>
+          <option value="5" selected>5라운드</option>
+          <option value="7">7라운드</option>
+          <option value="10">10라운드</option>
+        </select>
+      </div>
+      <button class="btn btn-gold" id="create-room-btn" disabled onclick="createRoom()">방 만들기</button>
+    </div>
+  </div>
+
+  <div class="lobby-right">
+    <div class="lobby-rooms-title">🎴 게임 방 목록</div>
+    <div class="room-list" id="room-list">
+      <div class="empty-rooms">방이 없습니다. 직접 만들어보세요!</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     게임방 화면 (대기/교환/뽑기)
+══════════════════════════════════════════ -->
+<div id="room-screen" class="screen">
+  <div class="room-header">
+    <div>
+      <span class="room-header-title" id="room-header-title">달무티</span>
+      <span class="room-header-meta" id="room-header-meta"></span>
+    </div>
+    <div class="room-header-right">
+      <button class="btn btn-outline btn-sm" id="room-title-edit-btn" style="display:none" onclick="openRoomEdit()">방 설정</button>
+      <button class="btn btn-outline btn-sm" onclick="leaveRoom()">퇴장</button>
+    </div>
+  </div>
+  <div class="room-body" id="room-body">
+    <!-- 동적으로 채워짐 -->
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     게임 화면
+══════════════════════════════════════════ -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <span class="game-round-info" id="g-round"></span>
+    <span id="g-title"></span>
+    <span class="game-turn-info" id="g-turn-info"></span>
+  </div>
+  <div class="game-area" id="game-area">
+    <!-- 동적으로 채워짐 -->
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     모달들
+══════════════════════════════════════════ -->
+<!-- 닉네임 설정 -->
+<div class="overlay" id="nick-modal">
+  <div class="modal">
+    <div class="modal-title">닉네임 설정</div>
+    <div class="modal-body">
+      <div class="field-group">
+        <div class="field-label">닉네임 (2~10글자)</div>
+        <input type="text" id="nick-input" placeholder="닉네임을 입력하세요" maxlength="10">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeNickEdit()">취소</button>
+      <button class="btn btn-gold" onclick="submitNick()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- 방 설정 -->
+<div class="overlay hidden" id="room-edit-modal">
+  <div class="modal">
+    <div class="modal-title">방 설정 변경</div>
+    <div class="modal-body">
+      <div class="field-group">
+        <div class="field-label">방 제목</div>
+        <input type="text" id="edit-title-input" maxlength="20">
+      </div>
+      <div class="field-group" style="margin-top:12px">
+        <div class="field-label">라운드 수</div>
+        <select id="edit-rounds-select">
+          <option value="3">3라운드</option>
+          <option value="5">5라운드</option>
+          <option value="7">7라운드</option>
+          <option value="10">10라운드</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="document.getElementById('room-edit-modal').classList.add('hidden')">취소</button>
+      <button class="btn btn-gold" onclick="submitRoomEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 라운드/게임 종료 팝업 -->
+<div class="overlay hidden" id="result-modal">
+  <div class="modal">
+    <div class="modal-title" id="result-modal-title">라운드 결과</div>
+    <div class="modal-body" id="result-modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeResultModal()">닫기</button>
+      <button class="btn btn-gold" id="result-next-btn" style="display:none" onclick="nextRound()">다음 라운드</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div id="toast"></div>
+
+<!-- 혁명 배너 -->
+<div id="revolution-banner">🔥 혁명! 계급 역전!</div>
+
+<div id="orientation-guard" class="hidden">
+  <div class="orientation-box">
+    <div class="orientation-title">📱 가로 모드로 돌려주세요</div>
+    <div class="orientation-desc">모바일 세로 화면에서는 조작 버튼이 겹칠 수 있습니다.<br>원활한 플레이를 위해 화면을 가로로 회전해 주세요.</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════
+const SESSION_TOKEN_KEY = 'dalmuti_session_token';
+const sessionToken = getOrCreateSessionToken();
+const socket = io({ auth: { session_token: sessionToken } });
+let myNick = localStorage.getItem('dalmuti_nickname') || null;
+let mySid = null;
+let currentRoomId = null;
+let gameState = null;
+let selectedCardIndices = [];
+
+// ══════════════════════════════════════════
+// 유틸
+// ══════════════════════════════════════════
+function getOrCreateSessionToken() {
+  let token = localStorage.getItem(SESSION_TOKEN_KEY);
+  if (!token) {
+    token = `sess-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+function updateOrientationGuard() {
+  const guard = document.getElementById('orientation-guard');
+  if (!guard) return;
+  const isMobile = window.matchMedia('(max-width: 900px)').matches;
+  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+  guard.classList.toggle('hidden', !(isMobile && isPortrait));
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(name + '-screen').classList.add('active');
+}
+
+function cardHTML(card, selectable = false, small = false, selected = false) {
+  const cls = [
+    'card',
+    small ? 'card-sm' : '',
+    card.num === 13 ? 'jester' : '',
+    selectable ? '' : 'disabled',
+    selected ? 'selected' : ''
+  ].filter(Boolean).join(' ');
+  const onclick = selectable ? `toggleCard(${card.idx})` : '';
+  return `<div class="${cls}" onclick="${onclick}" data-num="${card.num}" data-idx="${card.idx ?? ''}">
+    <div class="card-emoji">${card.emoji}</div>
+    <div class="card-num">${card.num}</div>
+    <div class="card-name">${card.name}</div>
+  </div>`;
+}
+
+
+function indicesFromCardNumbers(hand, nums) {
+  const used = new Set();
+  const indices = [];
+  for (const num of nums) {
+    const idx = hand.findIndex((card, i) => !used.has(i) && card.num === num);
+    if (idx !== -1) {
+      used.add(idx);
+      indices.push(idx);
+    }
+  }
+  return indices;
+}
+
+function selectedNumbersFromHand(hand) {
+  return selectedCardIndices
+    .filter(i => i >= 0 && i < hand.length)
+    .map(i => hand[i].num);
+}
+
+// ══════════════════════════════════════════
+// 닉네임
+// ══════════════════════════════════════════
+function openNickEdit() {
+  document.getElementById('nick-input').value = myNick || '';
+  document.getElementById('nick-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('nick-input').focus(), 50);
+}
+function closeNickEdit() {
+  document.getElementById('nick-modal').classList.add('hidden');
+}
+function submitNick() {
+  const v = document.getElementById('nick-input').value.trim();
+  if (v.length < 2 || v.length > 10) {
+    showToast('닉네임은 2~10글자여야 합니다.');
+    return;
+  }
+  socket.emit('set_nickname', { nickname: v });
+}
+document.getElementById('nick-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitNick();
+});
+
+socket.on('nickname_ok', data => {
+  myNick = data.nickname;
+  localStorage.setItem('dalmuti_nickname', myNick);
+  document.getElementById('nick-show').textContent = myNick;
+  document.getElementById('create-room-btn').disabled = false;
+  closeNickEdit();
+});
+
+// 첫 진입시 닉네임 상태 반영
+window.addEventListener('load', () => {
+  const cancelBtn = document.getElementById('nick-modal').querySelector('.btn-outline');
+  cancelBtn.style.display = myNick ? '' : 'none';
+
+  if (myNick) {
+    document.getElementById('nick-show').textContent = myNick;
+    document.getElementById('create-room-btn').disabled = false;
+    closeNickEdit();
+  } else {
+    openNickEdit();
+  }
+
+  updateOrientationGuard();
+});
+window.addEventListener('resize', updateOrientationGuard);
+window.addEventListener('orientationchange', updateOrientationGuard);
+
+// ══════════════════════════════════════════
+// 로비
+// ══════════════════════════════════════════
+socket.on('connect', () => {
+  mySid = socket.id;
+  if (myNick) {
+    socket.emit('set_nickname', { nickname: myNick });
+    document.getElementById('nick-show').textContent = myNick;
+    document.getElementById('create-room-btn').disabled = false;
+  }
+  socket.emit('get_lobby');
+});
+
+socket.on('lobby_update', rooms => {
+  const list = document.getElementById('room-list');
+  if (!rooms.length) {
+    list.innerHTML = '<div class="empty-rooms">방이 없습니다. 직접 만들어보세요!</div>';
+    return;
+  }
+  list.innerHTML = rooms.map(r => `
+    <div class="room-card">
+      <div>
+        <div class="room-title">${escHtml(r.title)}</div>
+        <div class="room-meta">${r.rounds}라운드 · ${r.player_count}/9명</div>
+      </div>
+      <span class="room-badge ${r.state === 'lobby' ? 'badge-lobby' : 'badge-playing'}">
+        ${r.state === 'lobby' ? '대기중' : '게임중'}
+      </span>
+      ${r.state === 'lobby' ? `<button class="btn btn-outline btn-sm" onclick="joinRoom('${r.id}')">입장</button>` : ''}
+    </div>
+  `).join('');
+});
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function createRoom() {
+  if (!myNick) { openNickEdit(); return; }
+  const title = document.getElementById('room-title-input').value.trim() || '달무티';
+  const rounds = parseInt(document.getElementById('room-rounds-select').value);
+  socket.emit('create_room', { title, rounds });
+}
+
+function joinRoom(roomId) {
+  if (!myNick) { openNickEdit(); return; }
+  socket.emit('join_room_req', { room_id: roomId });
+}
+
+socket.on('room_joined', data => {
+  currentRoomId = data.room_id;
+  showScreen('room');
+});
+
+socket.on('left_room', () => {
+  currentRoomId = null;
+  showScreen('lobby');
+  socket.emit('get_lobby');
+});
+
+function leaveRoom() {
+  socket.emit('leave_room_req');
+}
+
+// ══════════════════════════════════════════
+// 방 설정
+// ══════════════════════════════════════════
+function openRoomEdit() {
+  if (!gameState) return;
+  document.getElementById('edit-title-input').value = gameState.title;
+  const sel = document.getElementById('edit-rounds-select');
+  sel.value = String(gameState.rounds);
+  document.getElementById('room-edit-modal').classList.remove('hidden');
+}
+function submitRoomEdit() {
+  const title = document.getElementById('edit-title-input').value.trim();
+  const rounds = parseInt(document.getElementById('edit-rounds-select').value);
+  socket.emit('update_room', { title, rounds });
+  document.getElementById('room-edit-modal').classList.add('hidden');
+}
+
+// ══════════════════════════════════════════
+// 상태 업데이트 메인 핸들러
+// ══════════════════════════════════════════
+socket.on('state_update', state => {
+  mySid = state.my_sid || mySid;
+  gameState = state;
+
+  if (state.state === 'playing') {
+    showScreen('game');
+    renderGameScreen(state);
+  } else {
+    showScreen('room');
+    renderRoomScreen(state);
+  }
+});
+
+// ══════════════════════════════════════════
+// 방 화면 렌더링
+// ══════════════════════════════════════════
+function renderRoomScreen(state) {
+  const isHost = state.host === mySid;
+  document.getElementById('room-header-title').textContent = state.title;
+  document.getElementById('room-header-meta').textContent =
+    `${state.rounds}라운드 · ${state.players.length}명`;
+  document.getElementById('room-title-edit-btn').style.display = isHost ? '' : 'none';
+
+  const body = document.getElementById('room-body');
+  if (state.state === 'lobby') {
+    renderLobby(state, body, isHost);
+  } else if (state.state === 'draw') {
+    renderDraw(state, body);
+  } else if (state.state === 'exchange') {
+    renderExchange(state, body);
+  } else if (state.state === 'round_end' || state.state === 'game_end') {
+    renderResult(state);
+  }
+}
+
+function renderLobby(state, body, isHost) {
+  const me = state.players.find(p => p.sid === mySid);
+  const allReady = state.players.length >= 3 && state.players.every(p => p.ready);
+  body.innerHTML = `
+    <div class="waiting-room">
+      <div class="player-list-title">🎴 참가자 목록 (${state.players.length}/9)</div>
+      <div class="player-slots" id="player-slots"></div>
+      <div class="waiting-actions">
+        <button class="btn ${me?.ready ? 'btn-outline' : 'btn-green'}" onclick="setReady(${!me?.ready})">
+          ${me?.ready ? '✓ 준비 완료 (취소)' : '준비'}
+        </button>
+        ${isHost ? `<button class="btn btn-gold" ${allReady ? '' : 'disabled'} onclick="startGame()">게임 시작</button>` : ''}
+      </div>
+    </div>
+  `;
+  const slots = document.getElementById('player-slots');
+  const filled = state.players.map(p => `
+    <div class="player-slot filled ${p.ready ? 'ready-yes' : ''}">
+      <div class="player-slot-name">${escHtml(p.nickname)}</div>
+      ${p.is_host ? '<div class="player-slot-host">👑 방장</div>' : ''}
+      ${p.sid === mySid ? '<div style="font-size:10px;color:var(--gold)">(나)</div>' : ''}
+      <div class="${p.ready ? 'ready-badge' : 'not-ready-badge'}">${p.ready ? '✓ 준비' : '대기중'}</div>
+    </div>
+  `).join('');
+  const empty = Array(Math.max(0, 9 - state.players.length)).fill(
+    '<div class="player-slot"><div style="color:var(--text-dim);font-size:12px">빈 자리</div></div>'
+  ).join('');
+  slots.innerHTML = filled + empty;
+}
+
+function renderDraw(state, body) {
+  const me = state.players.find(p => p.sid === mySid);
+  const myResult = state.draw_results[mySid];
+  const remaining = Object.values(state.draw_results).filter(v => v !== null).length;
+  const total = state.players.length;
+  body.innerHTML = `
+    <div class="draw-phase">
+      <div class="draw-title">🃏 순서 뽑기</div>
+      <div class="draw-desc">가장 낮은 숫자를 뽑은 사람이 달무티(왕)가 됩니다.</div>
+      <button class="draw-deck-btn" ${myResult ? 'disabled' : ''} onclick="drawCard()">
+        ${myResult ? (state.draw_results[mySid]?.card ? cardHTML(state.draw_results[mySid].card, false, false) : `<span style="font-size:32px;color:var(--gold);font-weight:900">${myResult}</span>`) : '🂠'}
+      </button>
+      <div style="font-size:13px;color:var(--text-dim)">${remaining}/${total}명 뽑음</div>
+      <div class="draw-results-list" id="draw-results-list"></div>
+    </div>
+  `;
+  const resList = document.getElementById('draw-results-list');
+  resList.innerHTML = Object.entries(state.draw_results).map(([sid, info]) => {
+    if (!info || info.value === null) return '';
+    return `<div class="draw-result-item">
+      <span>${escHtml(info.nickname)}</span>
+      ${info.card ? cardHTML(info.card, false, true) : `<span class="draw-result-num">${info.value}</span>`}
+    </div>`;
+  }).join('');
+}
+
+function renderExchange(state, body) {
+  const myExch = state.my_exchange;
+  const isNoPair = myExch.no_pair;
+  const isAutoSel = myExch.auto;
+  const isHigh = state.my_pair_role === 'high';
+  const me = state.players.find(p => p.sid === mySid);
+
+  selectedCardIndices = isAutoSel
+    ? indicesFromCardNumbers(state.my_hand, myExch.selected.map(c => c.num))
+    : selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
+
+  body.innerHTML = `
+    <div class="exchange-phase">
+      <div class="exchange-title">🔄 카드 교환</div>
+      <div class="exchange-info">
+        ${isNoPair
+          ? '📌 카드 교환 대상이 아닙니다.'
+          : isHigh
+            ? `<b style="color:var(--gold-light)">${escHtml(state.pair_nickname)}</b>님에게 줄 카드 2장을 선택하세요. (높은 계급)`
+            : `<b style="color:#e74c3c">${escHtml(state.pair_nickname)}</b>님에게 상납할 카드가 자동 선택되었습니다. (낮은 계급)`
+        }
+      </div>
+      ${isNoPair ? '' : `
+        <div class="field-label" style="text-align:center">내 손패</div>
+        <div class="exchange-hand" id="exch-hand"></div>
+        ${isAutoSel ? '<div style="font-size:12px;color:var(--text-dim);text-align:center">🔒 가장 낮은 카드 2장이 자동 선택되었습니다</div>' : ''}
+      `}
+      ${state.can_revolution ? `
+        <div style="text-align:center;padding:8px;background:rgba(192,57,43,0.15);border-radius:8px;font-size:13px">
+          🃏 어릿광대 2장 보유! 혁명을 일으킬 수 있습니다.
+        </div>
+      ` : ''}
+      <div class="exchange-actions">
+        ${state.can_revolution ? `<button class="btn btn-red" onclick="doRevolution()">🔥 혁명!</button>` : ''}
+        ${isNoPair
+          ? `<button class="btn btn-gold" ${myExch.confirmed ? 'disabled' : ''} onclick="confirmExchange()">
+              ${myExch.confirmed ? '✓ 확인됨' : '확인'}
+            </button>`
+          : `<button class="btn btn-gold" ${myExch.confirmed ? 'disabled' : ''} onclick="confirmExchange()">
+              ${myExch.confirmed ? '✓ 교환 완료' : '교환 확인'}
+            </button>`
+        }
+      </div>
+      <div style="font-size:12px;color:var(--text-dim);text-align:center">
+        교환 현황: ${state.exchange_confirmed_count}/${state.exchange_total_count}명 확인 완료
+      </div>
+    </div>
+  `;
+
+  if (!isNoPair) {
+    const hand = document.getElementById('exch-hand');
+    const myHand = state.my_hand;
+    hand.innerHTML = myHand.map((c, idx) => {
+      const isSel = selectedCardIndices.includes(idx);
+      return cardHTML({ ...c, idx }, !isAutoSel && !myExch.confirmed, false, isSel);
+    }).join('');
+  }
+}
+
+function renderResult(state) {
+  const isGameEnd = state.state === 'game_end';
+  const isHost = state.host === mySid;
+  document.getElementById('result-modal').classList.remove('hidden');
+  document.getElementById('result-modal-title').textContent =
+    isGameEnd ? '🏆 게임 종료!' : `라운드 ${state.current_round} 결과`;
+
+  const winCounts = state.win_counts;
+  const players = state.players.slice().sort((a, b) => (winCounts[b.sid] || 0) - (winCounts[a.sid] || 0));
+
+  const tbody = players.map((p, i) => {
+    const cls = i === 0 ? 'rank-1st' : i === 1 ? 'rank-2nd' : i === 2 ? 'rank-3rd' : '';
+    return `<tr class="${cls}">
+      <td>${i + 1}위</td>
+      <td>${escHtml(p.nickname)}${p.sid === mySid ? ' (나)' : ''}</td>
+      <td>${p.rank_emoji} ${p.rank_name}</td>
+      <td>${winCounts[p.sid] || 0}승</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('result-modal-body').innerHTML = `
+    <table class="rank-table">
+      <thead><tr><th>순위</th><th>플레이어</th><th>계급</th><th>${isGameEnd ? '총 승수' : '현재 승수'}</th></tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  `;
+
+  const nextBtn = document.getElementById('result-next-btn');
+  if (isHost) {
+    nextBtn.style.display = '';
+    nextBtn.textContent = isGameEnd ? '대기실로' : '다음 라운드';
+  } else {
+    nextBtn.style.display = 'none';
+  }
+}
+
+function closeResultModal() {
+  document.getElementById('result-modal').classList.add('hidden');
+}
+function nextRound() {
+  socket.emit('next_round_ack');
+  closeResultModal();
+}
+
+// ══════════════════════════════════════════
+// 좌석 배치 계산 (룰북 기준, 3~9인)
+// - 짝수: 상단 n/2명(1위~), 하단 n/2명(n위~, 좌→우 역순)
+// - 홀수: 중간 계급이 우측 단독, 나머지 짝수처럼
+// - 내(me) 자리는 항상 하단 고정, 다른 플레이어를 재배치
+// ══════════════════════════════════════════
+function calcSeatLayout(allPlayers) {
+  // 계급순 고정 배치
+  // 4인 예시: top=[1,2], bottom=[4,3]
+  const sorted = [...allPlayers].sort((a, b) => a.rank - b.rank);
+  const n = sorted.length;
+  let top = [], bottom = [], right = null;
+
+  if (n % 2 === 0) {
+    const half = n / 2;
+    top = sorted.slice(0, half);
+    bottom = sorted.slice(half).reverse();
+  } else {
+    const midIdx = Math.floor(n / 2);
+    right = sorted[midIdx];
+    const rest = sorted.filter((_, i) => i !== midIdx);
+    const half = rest.length / 2;
+    top = rest.slice(0, half);
+    bottom = rest.slice(half).reverse();
+  }
+
+  return { top, bottom, right };
+}
+
+function oppCardHTML(p, state) {
+  const isTurn = p.sid === state.current_turn;
+  const isMe = p.sid === mySid;
+  return `<div class="opponent-card ${isTurn ? 'current-turn' : ''} ${p.finished ? 'finished' : ''}">
+    <div class="opp-rank">${p.rank_emoji} ${p.rank_name}</div>
+    <div class="opp-name">${escHtml(p.nickname)}${isMe ? ' (나)' : ''}</div>
+    <div class="opp-count">🃏 ${p.hand_count}장</div>
+    ${p.finished ? `<div class="opp-finish">${p.finish_rank}등 완료!</div>` : ''}
+  </div>`;
+}
+
+// ══════════════════════════════════════════
+// 게임 화면 렌더링
+// ══════════════════════════════════════════
+function renderGameScreen(state) {
+  const isMyTurn = state.current_turn === mySid;
+  const me = state.players.find(p => p.sid === mySid);
+
+  document.getElementById('g-round').textContent = `${state.current_round + 1} / ${state.rounds} 라운드`;
+  document.getElementById('g-title').textContent = state.title;
+
+  const turnPlayer = state.players.find(p => p.sid === state.current_turn);
+  document.getElementById('g-turn-info').textContent =
+    isMyTurn ? '🔥 내 차례입니다!' : (turnPlayer ? `⏳ ${turnPlayer.nickname}의 차례` : '');
+
+  const area = document.getElementById('game-area');
+
+  // ── 좌석 배치 계산 ──
+  const { top, bottom, right } = calcSeatLayout(state.players);
+
+  const topHTML    = top.map(p => oppCardHTML(p, state)).join('');
+  const bottomHTML = bottom.map(p => oppCardHTML(p, state)).join('');
+  const rightHTML  = right ? `
+    <div class="opponents-side-right">
+      ${oppCardHTML(right, state)}
+      <div style="font-size:10px;color:var(--text-dim);text-align:center;margin-top:2px;">교환없음</div>
+    </div>` : '';
+
+  // ── 테이블 카드 ──
+  const tableHTML = state.table_cards.length
+    ? state.table_cards.map(c => cardHTML(c, false, true)).join('')
+    : `<div class="table-msg">낸 카드가 없습니다</div>`;
+
+  // ── 내 손패 ──
+  selectedCardIndices = selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
+  const canPlay = isMyTurn && !me?.finished;
+  const handHTML = state.my_hand.map((c, idx) =>
+    cardHTML({ ...c, idx }, canPlay, false, selectedCardIndices.includes(idx))
+  ).join('');
+
+  area.innerHTML = `
+    <div class="opponents-top">${topHTML}</div>
+    <div class="table-row">
+      <div class="table-left-space"></div>
+      <div class="game-table" style="position:relative;">
+        ${isMyTurn ? '<div class="my-turn-msg">🔥 내 차례입니다! 카드를 내세요</div>' : ''}
+        <div class="table-cards">${tableHTML}</div>
+      </div>
+      <div class="table-right-space">${rightHTML}</div>
+    </div>
+    <div class="opponents-bottom">${bottomHTML}</div>
+    <div class="my-area">
+      <div class="my-info">
+        <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
+        <div class="my-card-count">남은 카드: ${state.my_hand.length}장</div>
+        ${me?.finished ? '<div style="color:var(--gold);font-size:13px">✓ 완료!</div>' : ''}
+      </div>
+      ${!me?.finished ? `
+        <div class="hand-area" id="hand-area">${handHTML}</div>
+        ${isMyTurn ? `
+          <div class="game-actions">
+            <button class="btn btn-outline" onclick="doPass()">패스</button>
+            <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCardIndices.length}장)</button>
+          </div>
+        ` : ''}
+      ` : ''}
+    </div>
+  `;
+
+  if (state.state === 'round_end' || state.state === 'game_end') {
+    renderResult(state);
+  }
+}
+
+// ══════════════════════════════════════════
+// 카드 선택
+// ══════════════════════════════════════════
+function toggleCard(cardIdx) {
+  const selectedIdx = selectedCardIndices.indexOf(cardIdx);
+  if (selectedIdx !== -1) {
+    selectedCardIndices.splice(selectedIdx, 1);
+  } else {
+    selectedCardIndices.push(cardIdx);
+  }
+  if (gameState) {
+    if (gameState.state === 'playing') {
+      renderGameScreen(gameState);
+    } else if (gameState.state === 'exchange') {
+      renderExchange(gameState, document.getElementById('room-body'));
+    }
+  }
+}
+
+// ══════════════════════════════════════════
+// 게임 액션
+// ══════════════════════════════════════════
+function setReady(val) { socket.emit('set_ready', { ready: val }); }
+function startGame() { socket.emit('start_game'); }
+function drawCard() { socket.emit('draw_card'); }
+
+function confirmExchange() {
+  if (gameState && gameState.my_exchange.auto === false) {
+    socket.emit('exchange_select', { selected: selectedNumbersFromHand(gameState.my_hand) });
+  }
+  socket.emit('exchange_confirm');
+  selectedCardIndices = [];
+}
+
+function doRevolution() { socket.emit('revolution'); }
+
+function doPlayCards() {
+  if (selectedCardIndices.length === 0) { showToast('카드를 선택하세요.'); return; }
+  socket.emit('play_cards', { cards: selectedNumbersFromHand(gameState.my_hand) });
+  selectedCardIndices = [];
+}
+
+function doPass() { socket.emit('pass_turn'); }
+
+// ══════════════════════════════════════════
+// 이벤트 핸들러들
+// ══════════════════════════════════════════
+socket.on('error_msg', data => showToast('⚠️ ' + data.message));
+socket.on('info_msg', data => showToast('ℹ️ ' + data.message, 3200));
+
+socket.on('game_interrupted', data => {
+  showToast(data.message, 4000);
+  closeResultModal();
+});
+
+socket.on('revolution_alert', data => {
+  const banner = document.getElementById('revolution-banner');
+  banner.textContent = data.message;
+  banner.classList.add('show');
+  setTimeout(() => banner.classList.remove('show'), 2500);
+});
+
+socket.on('redraw_needed', data => {
+  showToast(`🎲 재뽑기: ${data.redraw_players.join(', ')} 님은 다시 뽑으세요!`, 4000);
+});
+
+// 초기 닉네임 입력창 취소 방지
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (myNick) closeNickEdit();
+  }
+});
+</script>
+</body>
+</html>
