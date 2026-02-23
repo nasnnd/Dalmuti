@@ -1,380 +1,367 @@
-diff --git a/templates/index.html b/templates/index.html
-index 6d215d292926bcb1077f745829d1b967bc9eb578..686dbda2ef6bab03c521153acc9fbd6ba4d5580b 100644
---- a/templates/index.html
-+++ b/templates/index.html
-@@ -659,50 +659,77 @@
-   /* 혁명 알림 */
-   #revolution-banner {
-     position: fixed;
-     top: 50%;
-     left: 50%;
-     transform: translate(-50%, -50%) scale(0.5);
-     background: linear-gradient(135deg, #8B0000, #c0392b);
-     color: white;
-     padding: 20px 40px;
-     border-radius: 16px;
-     font-family: 'Noto Serif KR', serif;
-     font-size: 28px;
-     font-weight: 900;
-     z-index: 300;
-     pointer-events: none;
-     opacity: 0;
-     transition: opacity 0.4s, transform 0.4s;
-     text-align: center;
-     box-shadow: 0 0 60px rgba(192,57,43,0.6);
-   }
-   #revolution-banner.show {
-     opacity: 1;
-     transform: translate(-50%, -50%) scale(1);
-   }
- 
-+  #orientation-guard {
-+    position: fixed;
-+    inset: 0;
-+    z-index: 400;
-+    background: rgba(0,0,0,0.9);
-+    display: flex;
-+    align-items: center;
-+    justify-content: center;
-+    padding: 24px;
-+    text-align: center;
-+  }
-+  #orientation-guard.hidden { display: none; }
-+  .orientation-box {
-+    max-width: 420px;
-+    border: 1px solid rgba(201,168,76,0.4);
-+    border-radius: 14px;
-+    padding: 20px;
-+    background: linear-gradient(160deg, #2c1810, #1a1210);
-+  }
-+  .orientation-title {
-+    color: var(--gold);
-+    font-size: 22px;
-+    margin-bottom: 8px;
-+    font-family: 'Noto Serif KR', serif;
-+  }
-+  .orientation-desc { color: var(--text-dim); font-size: 14px; }
-+
-   /* 스크롤바 */
-   ::-webkit-scrollbar { width: 6px; }
-   ::-webkit-scrollbar-track { background: transparent; }
-   ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
- 
-   /* 반응형 */
-   @media (max-width: 768px) {
-     #lobby-screen { flex-direction: column; overflow-y: auto; }
-     .lobby-left { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(201,168,76,0.2); }
-     .player-slots { grid-template-columns: repeat(2, 1fr); }
-   }
- 
-   .divider {
-     border: none;
-     border-top: 1px solid rgba(201,168,76,0.15);
-     margin: 4px 0;
-   }
- 
-   .game-wrapper {
-     position: relative;
-     flex: 1;
-     display: flex;
-     flex-direction: column;
-     align-items: center;
-     overflow: hidden;
+  /* 혁명 알림 */
+  #revolution-banner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.5);
+    background: linear-gradient(135deg, #8B0000, #c0392b);
+    color: white;
+    padding: 20px 40px;
+    border-radius: 16px;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 28px;
+    font-weight: 900;
+    z-index: 300;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s, transform 0.4s;
+    text-align: center;
+    box-shadow: 0 0 60px rgba(192,57,43,0.6);
+  }
+  #revolution-banner.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #orientation-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  #orientation-guard.hidden { display: none; }
+  .orientation-box {
+    max-width: 420px;
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 14px;
+    padding: 20px;
+    background: linear-gradient(160deg, #2c1810, #1a1210);
+  }
+  .orientation-title {
+    color: var(--gold);
+    font-size: 22px;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif KR', serif;
+  }
+  .orientation-desc { color: var(--text-dim); font-size: 14px; }
+
+  /* 스크롤바 */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
+
+  /* 반응형 */
+  @media (max-width: 768px) {
+    #lobby-screen { flex-direction: column; overflow-y: auto; }
+    .lobby-left { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(201,168,76,0.2); }
+    .player-slots { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(201,168,76,0.15);
+    margin: 4px 0;
+  }
+
+  .game-wrapper {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden;
 @@ -833,64 +860,90 @@
-     <div class="modal-actions">
-       <button class="btn btn-outline" onclick="document.getElementById('room-edit-modal').classList.add('hidden')">취소</button>
-       <button class="btn btn-gold" onclick="submitRoomEdit()">저장</button>
-     </div>
-   </div>
- </div>
- 
- <!-- 라운드/게임 종료 팝업 -->
- <div class="overlay hidden" id="result-modal">
-   <div class="modal">
-     <div class="modal-title" id="result-modal-title">라운드 결과</div>
-     <div class="modal-body" id="result-modal-body"></div>
-     <div class="modal-actions">
-       <button class="btn btn-outline" onclick="closeResultModal()">닫기</button>
-       <button class="btn btn-gold" id="result-next-btn" style="display:none" onclick="nextRound()">다음 라운드</button>
-     </div>
-   </div>
- </div>
- 
- <!-- 토스트 -->
- <div id="toast"></div>
- 
- <!-- 혁명 배너 -->
- <div id="revolution-banner">🔥 혁명! 계급 역전!</div>
- 
-+<div id="orientation-guard" class="hidden">
-+  <div class="orientation-box">
-+    <div class="orientation-title">📱 가로 모드로 돌려주세요</div>
-+    <div class="orientation-desc">모바일 세로 화면에서는 조작 버튼이 겹칠 수 있습니다.<br>원활한 플레이를 위해 화면을 가로로 회전해 주세요.</div>
-+  </div>
-+</div>
-+
- <script>
- // ══════════════════════════════════════════
- // 상태
- // ══════════════════════════════════════════
--const socket = io();
--let myNick = null;
-+const SESSION_TOKEN_KEY = 'dalmuti_session_token';
-+const sessionToken = getOrCreateSessionToken();
-+const socket = io({ auth: { session_token: sessionToken } });
-+let myNick = localStorage.getItem('dalmuti_nickname') || null;
- let mySid = null;
- let currentRoomId = null;
- let gameState = null;
- let selectedCardIndices = [];
- 
- // ══════════════════════════════════════════
- // 유틸
- // ══════════════════════════════════════════
-+function getOrCreateSessionToken() {
-+  let token = localStorage.getItem(SESSION_TOKEN_KEY);
-+  if (!token) {
-+    token = `sess-${Math.random().toString(36).slice(2)}-${Date.now()}`;
-+    localStorage.setItem(SESSION_TOKEN_KEY, token);
-+  }
-+  return token;
-+}
-+
-+function updateOrientationGuard() {
-+  const guard = document.getElementById('orientation-guard');
-+  if (!guard) return;
-+  const isMobile = window.matchMedia('(max-width: 900px)').matches;
-+  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
-+  guard.classList.toggle('hidden', !(isMobile && isPortrait));
-+}
-+
- function showToast(msg, duration = 2500) {
-   const t = document.getElementById('toast');
-   t.textContent = msg;
-   t.classList.add('show');
-   setTimeout(() => t.classList.remove('show'), duration);
- }
- 
- function showScreen(name) {
-   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-   document.getElementById(name + '-screen').classList.add('active');
- }
- 
- function cardHTML(card, selectable = false, small = false, selected = false) {
-   const cls = [
-     'card',
-     small ? 'card-sm' : '',
-     card.num === 13 ? 'jester' : '',
-     selectable ? '' : 'disabled',
-     selected ? 'selected' : ''
-   ].filter(Boolean).join(' ');
-   const onclick = selectable ? `toggleCard(${card.idx})` : '';
-   return `<div class="${cls}" onclick="${onclick}" data-num="${card.num}" data-idx="${card.idx ?? ''}">
-     <div class="card-emoji">${card.emoji}</div>
-     <div class="card-num">${card.num}</div>
-     <div class="card-name">${card.name}</div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="document.getElementById('room-edit-modal').classList.add('hidden')">취소</button>
+      <button class="btn btn-gold" onclick="submitRoomEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 라운드/게임 종료 팝업 -->
+<div class="overlay hidden" id="result-modal">
+  <div class="modal">
+    <div class="modal-title" id="result-modal-title">라운드 결과</div>
+    <div class="modal-body" id="result-modal-body"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeResultModal()">닫기</button>
+      <button class="btn btn-gold" id="result-next-btn" style="display:none" onclick="nextRound()">다음 라운드</button>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 -->
+<div id="toast"></div>
+
+<!-- 혁명 배너 -->
+<div id="revolution-banner">🔥 혁명! 계급 역전!</div>
+
+<div id="orientation-guard" class="hidden">
+  <div class="orientation-box">
+    <div class="orientation-title">📱 가로 모드로 돌려주세요</div>
+    <div class="orientation-desc">모바일 세로 화면에서는 조작 버튼이 겹칠 수 있습니다.<br>원활한 플레이를 위해 화면을 가로로 회전해 주세요.</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════
+const SESSION_TOKEN_KEY = 'dalmuti_session_token';
+const sessionToken = getOrCreateSessionToken();
+const socket = io({ auth: { session_token: sessionToken } });
+let myNick = localStorage.getItem('dalmuti_nickname') || null;
+let mySid = null;
+let currentRoomId = null;
+let gameState = null;
+let selectedCardIndices = [];
+
+// ══════════════════════════════════════════
+// 유틸
+// ══════════════════════════════════════════
+function getOrCreateSessionToken() {
+  let token = localStorage.getItem(SESSION_TOKEN_KEY);
+  if (!token) {
+    token = `sess-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+function updateOrientationGuard() {
+  const guard = document.getElementById('orientation-guard');
+  if (!guard) return;
+  const isMobile = window.matchMedia('(max-width: 900px)').matches;
+  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+  guard.classList.toggle('hidden', !(isMobile && isPortrait));
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(name + '-screen').classList.add('active');
+}
+
+function cardHTML(card, selectable = false, small = false, selected = false) {
+  const cls = [
+    'card',
+    small ? 'card-sm' : '',
+    card.num === 13 ? 'jester' : '',
+    selectable ? '' : 'disabled',
+    selected ? 'selected' : ''
+  ].filter(Boolean).join(' ');
+  const onclick = selectable ? `toggleCard(${card.idx})` : '';
+  return `<div class="${cls}" onclick="${onclick}" data-num="${card.num}" data-idx="${card.idx ?? ''}">
+    <div class="card-emoji">${card.emoji}</div>
+    <div class="card-num">${card.num}</div>
+    <div class="card-name">${card.name}</div>
 @@ -920,66 +973,84 @@ function selectedNumbersFromHand(hand) {
- // ══════════════════════════════════════════
- // 닉네임
- // ══════════════════════════════════════════
- function openNickEdit() {
-   document.getElementById('nick-input').value = myNick || '';
-   document.getElementById('nick-modal').classList.remove('hidden');
-   setTimeout(() => document.getElementById('nick-input').focus(), 50);
- }
- function closeNickEdit() {
-   document.getElementById('nick-modal').classList.add('hidden');
- }
- function submitNick() {
-   const v = document.getElementById('nick-input').value.trim();
-   if (v.length < 2 || v.length > 10) {
-     showToast('닉네임은 2~10글자여야 합니다.');
-     return;
-   }
-   socket.emit('set_nickname', { nickname: v });
- }
- document.getElementById('nick-input').addEventListener('keydown', e => {
-   if (e.key === 'Enter') submitNick();
- });
- 
- socket.on('nickname_ok', data => {
-   myNick = data.nickname;
-+  localStorage.setItem('dalmuti_nickname', myNick);
-   document.getElementById('nick-show').textContent = myNick;
-   document.getElementById('create-room-btn').disabled = false;
-   closeNickEdit();
- });
- 
--// 첫 진입시 자동으로 닉네임 설정 창
-+// 첫 진입시 닉네임 상태 반영
- window.addEventListener('load', () => {
--  openNickEdit();
--  document.getElementById('nick-modal').querySelector('.btn-outline').style.display = 'none';
-+  const cancelBtn = document.getElementById('nick-modal').querySelector('.btn-outline');
-+  cancelBtn.style.display = myNick ? '' : 'none';
-+
-+  if (myNick) {
-+    document.getElementById('nick-show').textContent = myNick;
-+    document.getElementById('create-room-btn').disabled = false;
-+    closeNickEdit();
-+  } else {
-+    openNickEdit();
-+  }
-+
-+  updateOrientationGuard();
- });
-+window.addEventListener('resize', updateOrientationGuard);
-+window.addEventListener('orientationchange', updateOrientationGuard);
- 
- // ══════════════════════════════════════════
- // 로비
- // ══════════════════════════════════════════
- socket.on('connect', () => {
-   mySid = socket.id;
-+  if (myNick) {
-+    socket.emit('set_nickname', { nickname: myNick });
-+    document.getElementById('nick-show').textContent = myNick;
-+    document.getElementById('create-room-btn').disabled = false;
-+  }
-   socket.emit('get_lobby');
- });
- 
- socket.on('lobby_update', rooms => {
-   const list = document.getElementById('room-list');
-   if (!rooms.length) {
-     list.innerHTML = '<div class="empty-rooms">방이 없습니다. 직접 만들어보세요!</div>';
-     return;
-   }
-   list.innerHTML = rooms.map(r => `
-     <div class="room-card">
-       <div>
-         <div class="room-title">${escHtml(r.title)}</div>
-         <div class="room-meta">${r.rounds}라운드 · ${r.player_count}/9명</div>
-       </div>
-       <span class="room-badge ${r.state === 'lobby' ? 'badge-lobby' : 'badge-playing'}">
-         ${r.state === 'lobby' ? '대기중' : '게임중'}
-       </span>
-       ${r.state === 'lobby' ? `<button class="btn btn-outline btn-sm" onclick="joinRoom('${r.id}')">입장</button>` : ''}
-     </div>
-   `).join('');
- });
- 
- function escHtml(s) {
-   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ══════════════════════════════════════════
+// 닉네임
+// ══════════════════════════════════════════
+function openNickEdit() {
+  document.getElementById('nick-input').value = myNick || '';
+  document.getElementById('nick-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('nick-input').focus(), 50);
+}
+function closeNickEdit() {
+  document.getElementById('nick-modal').classList.add('hidden');
+}
+function submitNick() {
+  const v = document.getElementById('nick-input').value.trim();
+  if (v.length < 2 || v.length > 10) {
+    showToast('닉네임은 2~10글자여야 합니다.');
+    return;
+  }
+  socket.emit('set_nickname', { nickname: v });
+}
+document.getElementById('nick-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitNick();
+});
+
+socket.on('nickname_ok', data => {
+  myNick = data.nickname;
+  localStorage.setItem('dalmuti_nickname', myNick);
+  document.getElementById('nick-show').textContent = myNick;
+  document.getElementById('create-room-btn').disabled = false;
+  closeNickEdit();
+});
+
+// 첫 진입시 닉네임 상태 반영
+window.addEventListener('load', () => {
+  const cancelBtn = document.getElementById('nick-modal').querySelector('.btn-outline');
+  cancelBtn.style.display = myNick ? '' : 'none';
+
+  if (myNick) {
+    document.getElementById('nick-show').textContent = myNick;
+    document.getElementById('create-room-btn').disabled = false;
+    closeNickEdit();
+  } else {
+    openNickEdit();
+  }
+
+  updateOrientationGuard();
+});
+window.addEventListener('resize', updateOrientationGuard);
+window.addEventListener('orientationchange', updateOrientationGuard);
+
+// ══════════════════════════════════════════
+// 로비
+// ══════════════════════════════════════════
+socket.on('connect', () => {
+  mySid = socket.id;
+  if (myNick) {
+    socket.emit('set_nickname', { nickname: myNick });
+    document.getElementById('nick-show').textContent = myNick;
+    document.getElementById('create-room-btn').disabled = false;
+  }
+  socket.emit('get_lobby');
+});
+
+socket.on('lobby_update', rooms => {
+  const list = document.getElementById('room-list');
+  if (!rooms.length) {
+    list.innerHTML = '<div class="empty-rooms">방이 없습니다. 직접 만들어보세요!</div>';
+    return;
+  }
+  list.innerHTML = rooms.map(r => `
+    <div class="room-card">
+      <div>
+        <div class="room-title">${escHtml(r.title)}</div>
+        <div class="room-meta">${r.rounds}라운드 · ${r.player_count}/9명</div>
+      </div>
+      <span class="room-badge ${r.state === 'lobby' ? 'badge-lobby' : 'badge-playing'}">
+        ${r.state === 'lobby' ? '대기중' : '게임중'}
+      </span>
+      ${r.state === 'lobby' ? `<button class="btn btn-outline btn-sm" onclick="joinRoom('${r.id}')">입장</button>` : ''}
+    </div>
+  `).join('');
+});
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 @@ -1085,62 +1156,62 @@ function renderLobby(state, body, isHost) {
-   const slots = document.getElementById('player-slots');
-   const filled = state.players.map(p => `
-     <div class="player-slot filled ${p.ready ? 'ready-yes' : ''}">
-       <div class="player-slot-name">${escHtml(p.nickname)}</div>
-       ${p.is_host ? '<div class="player-slot-host">👑 방장</div>' : ''}
-       ${p.sid === mySid ? '<div style="font-size:10px;color:var(--gold)">(나)</div>' : ''}
-       <div class="${p.ready ? 'ready-badge' : 'not-ready-badge'}">${p.ready ? '✓ 준비' : '대기중'}</div>
-     </div>
-   `).join('');
-   const empty = Array(Math.max(0, 9 - state.players.length)).fill(
-     '<div class="player-slot"><div style="color:var(--text-dim);font-size:12px">빈 자리</div></div>'
-   ).join('');
-   slots.innerHTML = filled + empty;
- }
- 
- function renderDraw(state, body) {
-   const me = state.players.find(p => p.sid === mySid);
-   const myResult = state.draw_results[mySid];
-   const remaining = Object.values(state.draw_results).filter(v => v !== null).length;
-   const total = state.players.length;
-   body.innerHTML = `
-     <div class="draw-phase">
-       <div class="draw-title">🃏 순서 뽑기</div>
-       <div class="draw-desc">가장 낮은 숫자를 뽑은 사람이 달무티(왕)가 됩니다.</div>
-       <button class="draw-deck-btn" ${myResult ? 'disabled' : ''} onclick="drawCard()">
--        ${myResult ? `<span style="font-size:32px;color:var(--gold);font-weight:900">${myResult}</span>` : '🂠'}
-+        ${myResult ? (state.draw_results[mySid]?.card ? cardHTML(state.draw_results[mySid].card, false, false) : `<span style="font-size:32px;color:var(--gold);font-weight:900">${myResult}</span>`) : '🂠'}
-       </button>
-       <div style="font-size:13px;color:var(--text-dim)">${remaining}/${total}명 뽑음</div>
-       <div class="draw-results-list" id="draw-results-list"></div>
-     </div>
-   `;
-   const resList = document.getElementById('draw-results-list');
-   resList.innerHTML = Object.entries(state.draw_results).map(([sid, info]) => {
-     if (!info || info.value === null) return '';
-     return `<div class="draw-result-item">
-       <span>${escHtml(info.nickname)}</span>
--      <span class="draw-result-num">${info.value}</span>
-+      ${info.card ? cardHTML(info.card, false, true) : `<span class="draw-result-num">${info.value}</span>`}
-     </div>`;
-   }).join('');
- }
- 
- function renderExchange(state, body) {
-   const myExch = state.my_exchange;
-   const isNoPair = myExch.no_pair;
-   const isAutoSel = myExch.auto;
-   const isHigh = state.my_pair_role === 'high';
-   const me = state.players.find(p => p.sid === mySid);
- 
-   selectedCardIndices = isAutoSel
-     ? indicesFromCardNumbers(state.my_hand, myExch.selected.map(c => c.num))
-     : selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
- 
-   body.innerHTML = `
-     <div class="exchange-phase">
-       <div class="exchange-title">🔄 카드 교환</div>
-       <div class="exchange-info">
-         ${isNoPair
-           ? '📌 카드 교환 대상이 아닙니다.'
-           : isHigh
-             ? `<b style="color:var(--gold-light)">${escHtml(state.pair_nickname)}</b>님에게 줄 카드 2장을 선택하세요. (높은 계급)`
-             : `<b style="color:#e74c3c">${escHtml(state.pair_nickname)}</b>님에게 상납할 카드가 자동 선택되었습니다. (낮은 계급)`
-         }
+  const slots = document.getElementById('player-slots');
+  const filled = state.players.map(p => `
+    <div class="player-slot filled ${p.ready ? 'ready-yes' : ''}">
+      <div class="player-slot-name">${escHtml(p.nickname)}</div>
+      ${p.is_host ? '<div class="player-slot-host">👑 방장</div>' : ''}
+      ${p.sid === mySid ? '<div style="font-size:10px;color:var(--gold)">(나)</div>' : ''}
+      <div class="${p.ready ? 'ready-badge' : 'not-ready-badge'}">${p.ready ? '✓ 준비' : '대기중'}</div>
+    </div>
+  `).join('');
+  const empty = Array(Math.max(0, 9 - state.players.length)).fill(
+    '<div class="player-slot"><div style="color:var(--text-dim);font-size:12px">빈 자리</div></div>'
+  ).join('');
+  slots.innerHTML = filled + empty;
+}
+
+function renderDraw(state, body) {
+  const me = state.players.find(p => p.sid === mySid);
+  const myResult = state.draw_results[mySid];
+  const remaining = Object.values(state.draw_results).filter(v => v !== null).length;
+  const total = state.players.length;
+  body.innerHTML = `
+    <div class="draw-phase">
+      <div class="draw-title">🃏 순서 뽑기</div>
+      <div class="draw-desc">가장 낮은 숫자를 뽑은 사람이 달무티(왕)가 됩니다.</div>
+      <button class="draw-deck-btn" ${myResult ? 'disabled' : ''} onclick="drawCard()">
+        ${myResult ? (state.draw_results[mySid]?.card ? cardHTML(state.draw_results[mySid].card, false, false) : `<span style="font-size:32px;color:var(--gold);font-weight:900">${myResult}</span>`) : '🂠'}
+      </button>
+      <div style="font-size:13px;color:var(--text-dim)">${remaining}/${total}명 뽑음</div>
+      <div class="draw-results-list" id="draw-results-list"></div>
+    </div>
+  `;
+  const resList = document.getElementById('draw-results-list');
+  resList.innerHTML = Object.entries(state.draw_results).map(([sid, info]) => {
+    if (!info || info.value === null) return '';
+    return `<div class="draw-result-item">
+      <span>${escHtml(info.nickname)}</span>
+      ${info.card ? cardHTML(info.card, false, true) : `<span class="draw-result-num">${info.value}</span>`}
+    </div>`;
+  }).join('');
+}
+
+function renderExchange(state, body) {
+  const myExch = state.my_exchange;
+  const isNoPair = myExch.no_pair;
+  const isAutoSel = myExch.auto;
+  const isHigh = state.my_pair_role === 'high';
+  const me = state.players.find(p => p.sid === mySid);
+
+  selectedCardIndices = isAutoSel
+    ? indicesFromCardNumbers(state.my_hand, myExch.selected.map(c => c.num))
+    : selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
+
+  body.innerHTML = `
+    <div class="exchange-phase">
+      <div class="exchange-title">🔄 카드 교환</div>
+      <div class="exchange-info">
+        ${isNoPair
+          ? '📌 카드 교환 대상이 아닙니다.'
+          : isHigh
+            ? `<b style="color:var(--gold-light)">${escHtml(state.pair_nickname)}</b>님에게 줄 카드 2장을 선택하세요. (높은 계급)`
+            : `<b style="color:#e74c3c">${escHtml(state.pair_nickname)}</b>님에게 상납할 카드가 자동 선택되었습니다. (낮은 계급)`
+        }
 @@ -1294,51 +1365,50 @@ function renderGameScreen(state) {
-     </div>` : '';
- 
-   // ── 테이블 카드 ──
-   const tableHTML = state.table_cards.length
-     ? state.table_cards.map(c => cardHTML(c, false, true)).join('')
-     : `<div class="table-msg">낸 카드가 없습니다</div>`;
- 
-   // ── 내 손패 ──
-   selectedCardIndices = selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
-   const canPlay = isMyTurn && !me?.finished;
-   const handHTML = state.my_hand.map((c, idx) =>
-     cardHTML({ ...c, idx }, canPlay, false, selectedCardIndices.includes(idx))
-   ).join('');
- 
-   area.innerHTML = `
-     <div class="opponents-top">${topHTML}</div>
-     <div class="table-row">
-       <div class="table-left-space"></div>
-       <div class="game-table" style="position:relative;">
-         ${isMyTurn ? '<div class="my-turn-msg">🔥 내 차례입니다! 카드를 내세요</div>' : ''}
-         <div class="table-cards">${tableHTML}</div>
-       </div>
-       <div class="table-right-space">${rightHTML}</div>
-     </div>
-     <div class="opponents-bottom">${bottomHTML}</div>
--    <div class="my-seat-row">${me ? oppCardHTML(me, state) : ''}</div>
-     <div class="my-area">
-       <div class="my-info">
-         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
-         <div class="my-card-count">남은 카드: ${state.my_hand.length}장</div>
-         ${me?.finished ? '<div style="color:var(--gold);font-size:13px">✓ 완료!</div>' : ''}
-       </div>
-       ${!me?.finished ? `
-         <div class="hand-area" id="hand-area">${handHTML}</div>
-         ${isMyTurn ? `
-           <div class="game-actions">
-             <button class="btn btn-outline" onclick="doPass()">패스</button>
-             <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCardIndices.length}장)</button>
-           </div>
-         ` : ''}
-       ` : ''}
-     </div>
-   `;
- 
-   if (state.state === 'round_end' || state.state === 'game_end') {
-     renderResult(state);
-   }
- }
- 
- // ══════════════════════════════════════════
- // 카드 선택
+    </div>` : '';
+
+  // ── 테이블 카드 ──
+  const tableHTML = state.table_cards.length
+    ? state.table_cards.map(c => cardHTML(c, false, true)).join('')
+    : `<div class="table-msg">낸 카드가 없습니다</div>`;
+
+  // ── 내 손패 ──
+  selectedCardIndices = selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
+  const canPlay = isMyTurn && !me?.finished;
+  const handHTML = state.my_hand.map((c, idx) =>
+    cardHTML({ ...c, idx }, canPlay, false, selectedCardIndices.includes(idx))
+  ).join('');
+
+  area.innerHTML = `
+    <div class="opponents-top">${topHTML}</div>
+    <div class="table-row">
+      <div class="table-left-space"></div>
+      <div class="game-table" style="position:relative;">
+        ${isMyTurn ? '<div class="my-turn-msg">🔥 내 차례입니다! 카드를 내세요</div>' : ''}
+        <div class="table-cards">${tableHTML}</div>
+      </div>
+      <div class="table-right-space">${rightHTML}</div>
+    </div>
+    <div class="opponents-bottom">${bottomHTML}</div>
+    <div class="my-area">
+      <div class="my-info">
+        <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
+        <div class="my-card-count">남은 카드: ${state.my_hand.length}장</div>
+        ${me?.finished ? '<div style="color:var(--gold);font-size:13px">✓ 완료!</div>' : ''}
+      </div>
+      ${!me?.finished ? `
+        <div class="hand-area" id="hand-area">${handHTML}</div>
+        ${isMyTurn ? `
+          <div class="game-actions">
+            <button class="btn btn-outline" onclick="doPass()">패스</button>
+            <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCardIndices.length}장)</button>
+          </div>
+        ` : ''}
+      ` : ''}
+    </div>
+  `;
+
+  if (state.state === 'round_end' || state.state === 'game_end') {
+    renderResult(state);
+  }
+}
+
+// ══════════════════════════════════════════
+// 카드 선택
