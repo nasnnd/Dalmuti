@@ -243,8 +243,9 @@ def deal_cards(room_id):
     extra = len(deck) % n
     hands = {}
     idx = 0
+    bonus_start = n - extra
     for i, s in enumerate(order):
-        cnt = base + (1 if i < extra else 0)
+        cnt = base + (1 if i >= bonus_start else 0)
         hands[s] = sorted(deck[idx:idx + cnt])
         idx += cnt
     room["hands"] = hands
