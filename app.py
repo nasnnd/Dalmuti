@@ -315,7 +315,19 @@ def resolve_jester(cards):
         return 13
     return non_j[0]
 
+
+def is_single_rank_set(cards):
+    if not cards:
+        return False
+    non_j = [c for c in cards if c != 13]
+    if not non_j:
+        return True
+    target = non_j[0]
+    return all(c == target for c in non_j)
+
 def can_play_cards(cards, table_cards):
+    if not is_single_rank_set(cards):
+        return False
     if not table_cards:
         return len(cards) > 0
     if len(cards) != len(table_cards):
