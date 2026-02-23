@@ -681,6 +681,9 @@ def on_pass_turn():
         room["table_cards"] = []
         room["last_player"] = None
         room["pass_count"] = 0
+        socketio.emit('info_msg', {
+            'message': '모든 플레이어가 패스했습니다. 이제 원하는 카드 조합으로 새로운 흐름을 시작하세요.'
+        }, room=next_sid)
     elif not last:
         # 아무도 안 냈고 한바퀴 돈 경우
         room["pass_count"] = room.get("pass_count", 0) + 1
