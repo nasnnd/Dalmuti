@@ -487,6 +487,14 @@
     50% { opacity: 0.6; }
   }
 
+  .my-seat-row {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
   /* 내 영역 */
   .my-area {
     width: 100%;
@@ -856,7 +864,7 @@ let myNick = null;
 let mySid = null;
 let currentRoomId = null;
 let gameState = null;
-let selectedCards = [];
+let selectedCardIndices = [];
 
 // ══════════════════════════════════════════
 // 유틸
@@ -881,12 +889,32 @@ function cardHTML(card, selectable = false, small = false, selected = false) {
     selectable ? '' : 'disabled',
     selected ? 'selected' : ''
   ].filter(Boolean).join(' ');
-  const onclick = selectable ? `toggleCard(${card.num})` : '';
-  return `<div class="${cls}" onclick="${onclick}" data-num="${card.num}">
+  const onclick = selectable ? `toggleCard(${card.idx})` : '';
+  return `<div class="${cls}" onclick="${onclick}" data-num="${card.num}" data-idx="${card.idx ?? ''}">
     <div class="card-emoji">${card.emoji}</div>
     <div class="card-num">${card.num}</div>
     <div class="card-name">${card.name}</div>
   </div>`;
+}
+
+
+function indicesFromCardNumbers(hand, nums) {
+  const used = new Set();
+  const indices = [];
+  for (const num of nums) {
+    const idx = hand.findIndex((card, i) => !used.has(i) && card.num === num);
+    if (idx !== -1) {
+      used.add(idx);
+      indices.push(idx);
+    }
+  }
+  return indices;
+}
+
+function selectedNumbersFromHand(hand) {
+  return selectedCardIndices
+    .filter(i => i >= 0 && i < hand.length)
+    .map(i => hand[i].num);
 }
 
 // ══════════════════════════════════════════
@@ -1102,7 +1130,9 @@ function renderExchange(state, body) {
   const isHigh = state.my_pair_role === 'high';
   const me = state.players.find(p => p.sid === mySid);
 
-  selectedCards = isAutoSel ? myExch.selected.map(c => c.num) : selectedCards;
+  selectedCardIndices = isAutoSel
+    ? indicesFromCardNumbers(state.my_hand, myExch.selected.map(c => c.num))
+    : selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
 
   body.innerHTML = `
     <div class="exchange-phase">
@@ -1137,7 +1167,7 @@ function renderExchange(state, body) {
         }
       </div>
       <div style="font-size:12px;color:var(--text-dim);text-align:center">
-        교환 현황: ${state.players.filter(p => state.my_exchange).length}명 대기 중...
+        교환 현황: ${state.exchange_confirmed_count}/${state.exchange_total_count}명 확인 완료
       </div>
     </div>
   `;
@@ -1145,11 +1175,9 @@ function renderExchange(state, body) {
   if (!isNoPair) {
     const hand = document.getElementById('exch-hand');
     const myHand = state.my_hand;
-    hand.innerHTML = myHand.map(c => {
-      const isSel = isAutoSel
-        ? myExch.selected.some(s => s.num === c.num)
-        : selectedCards.includes(c.num);
-      return cardHTML(c, !isAutoSel && !myExch.confirmed, false, isSel);
+    hand.innerHTML = myHand.map((c, idx) => {
+      const isSel = selectedCardIndices.includes(idx);
+      return cardHTML({ ...c, idx }, !isAutoSel && !myExch.confirmed, false, isSel);
     }).join('');
   }
 }
@@ -1244,9 +1272,10 @@ function calcSeatLayout(allPlayers, mySid) {
 
 function oppCardHTML(p, state) {
   const isTurn = p.sid === state.current_turn;
+  const isMe = p.sid === mySid;
   return `<div class="opponent-card ${isTurn ? 'current-turn' : ''} ${p.finished ? 'finished' : ''}">
     <div class="opp-rank">${p.rank_emoji} ${p.rank_name}</div>
-    <div class="opp-name">${escHtml(p.nickname)}</div>
+    <div class="opp-name">${escHtml(p.nickname)}${isMe ? ' (나)' : ''}</div>
     <div class="opp-count">🃏 ${p.hand_count}장</div>
     ${p.finished ? `<div class="opp-finish">${p.finish_rank}등 완료!</div>` : ''}
   </div>`;
@@ -1285,9 +1314,10 @@ function renderGameScreen(state) {
     : `<div class="table-msg">낸 카드가 없습니다</div>`;
 
   // ── 내 손패 ──
+  selectedCardIndices = selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
   const canPlay = isMyTurn && !me?.finished;
-  const handHTML = state.my_hand.map(c =>
-    cardHTML(c, canPlay, false, selectedCards.includes(c.num))
+  const handHTML = state.my_hand.map((c, idx) =>
+    cardHTML({ ...c, idx }, canPlay, false, selectedCardIndices.includes(idx))
   ).join('');
 
   area.innerHTML = `
@@ -1301,6 +1331,7 @@ function renderGameScreen(state) {
       <div class="table-right-space">${rightHTML}</div>
     </div>
     <div class="opponents-bottom">${bottomHTML}</div>
+    <div class="my-seat-row">${me ? oppCardHTML(me, state) : ''}</div>
     <div class="my-area">
       <div class="my-info">
         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
@@ -1312,7 +1343,7 @@ function renderGameScreen(state) {
         ${isMyTurn ? `
           <div class="game-actions">
             <button class="btn btn-outline" onclick="doPass()">패스</button>
-            <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCards.length}장)</button>
+            <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCardIndices.length}장)</button>
           </div>
         ` : ''}
       ` : ''}
@@ -1327,12 +1358,12 @@ function renderGameScreen(state) {
 // ══════════════════════════════════════════
 // 카드 선택
 // ══════════════════════════════════════════
-function toggleCard(num) {
-  const idx = selectedCards.indexOf(num);
-  if (idx !== -1) {
-    selectedCards.splice(idx, 1);
+function toggleCard(cardIdx) {
+  const selectedIdx = selectedCardIndices.indexOf(cardIdx);
+  if (selectedIdx !== -1) {
+    selectedCardIndices.splice(selectedIdx, 1);
   } else {
-    selectedCards.push(num);
+    selectedCardIndices.push(cardIdx);
   }
   if (gameState) {
     if (gameState.state === 'playing') {
@@ -1352,18 +1383,18 @@ function drawCard() { socket.emit('draw_card'); }
 
 function confirmExchange() {
   if (gameState && gameState.my_exchange.auto === false) {
-    socket.emit('exchange_select', { selected: selectedCards });
+    socket.emit('exchange_select', { selected: selectedNumbersFromHand(gameState.my_hand) });
   }
   socket.emit('exchange_confirm');
-  selectedCards = [];
+  selectedCardIndices = [];
 }
 
 function doRevolution() { socket.emit('revolution'); }
 
 function doPlayCards() {
-  if (selectedCards.length === 0) { showToast('카드를 선택하세요.'); return; }
-  socket.emit('play_cards', { cards: selectedCards });
-  selectedCards = [];
+  if (selectedCardIndices.length === 0) { showToast('카드를 선택하세요.'); return; }
+  socket.emit('play_cards', { cards: selectedNumbersFromHand(gameState.my_hand) });
+  selectedCardIndices = [];
 }
 
 function doPass() { socket.emit('pass_turn'); }
@@ -1372,6 +1403,7 @@ function doPass() { socket.emit('pass_turn'); }
 // 이벤트 핸들러들
 // ══════════════════════════════════════════
 socket.on('error_msg', data => showToast('⚠️ ' + data.message));
+socket.on('info_msg', data => showToast('ℹ️ ' + data.message, 3200));
 
 socket.on('game_interrupted', data => {
   showToast(data.message, 4000);
