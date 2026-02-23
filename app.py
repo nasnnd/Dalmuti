@@ -243,8 +243,9 @@ def deal_cards(room_id):
     extra = len(deck) % n
     hands = {}
     idx = 0
+    bonus_start = n - extra
     for i, s in enumerate(order):
-        cnt = base + (1 if i < extra else 0)
+        cnt = base + (1 if i >= bonus_start else 0)
         hands[s] = sorted(deck[idx:idx + cnt])
         idx += cnt
     room["hands"] = hands
@@ -314,7 +315,19 @@ def resolve_jester(cards):
         return 13
     return non_j[0]
 
+
+def is_single_rank_set(cards):
+    if not cards:
+        return False
+    non_j = [c for c in cards if c != 13]
+    if not non_j:
+        return True
+    target = non_j[0]
+    return all(c == target for c in non_j)
+
 def can_play_cards(cards, table_cards):
+    if not is_single_rank_set(cards):
+        return False
     if not table_cards:
         return len(cards) > 0
     if len(cards) != len(table_cards):
