@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import uuid
+import os
 from collections import defaultdict, Counter
 
 app = Flask(__name__)
@@ -719,4 +720,12 @@ def on_next_round_ack():
         emit_state_all(room_id)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    socketio.run(
+        app,
+        debug=debug,
+        host='0.0.0.0',
+        port=port,
+        allow_unsafe_werkzeug=True,
+    )
