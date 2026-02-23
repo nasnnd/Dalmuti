@@ -1159,7 +1159,7 @@ function renderExchange(state, body) {
         }
       </div>
       <div style="font-size:12px;color:var(--text-dim);text-align:center">
-        교환 현황: ${state.players.filter(p => state.my_exchange).length}명 대기 중...
+        교환 현황: ${state.exchange_confirmed_count}/${state.exchange_total_count}명 확인 완료
       </div>
     </div>
   `;

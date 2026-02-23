@@ -134,6 +134,10 @@ def build_state(room_id, viewer_sid):
         "no_pair": exch.get("auto") is None,
     }
 
+    exchange_state = room.get("exchange_state", {})
+    exchange_confirmed_count = sum(1 for ex in exchange_state.values() if ex.get("confirmed"))
+    exchange_total_count = len(exchange_state)
+
     my_pair_sid = None
     my_pair_role = None
     for (h, l) in room.get("exchange_pairs", []):
@@ -172,6 +176,8 @@ def build_state(room_id, viewer_sid):
         "can_revolution": room.get("can_revolution") and viewer_sid == room.get("peasant_sid"),
         "revolution": room.get("revolution", False),
         "turn_direction": room.get("turn_direction", 1),
+        "exchange_confirmed_count": exchange_confirmed_count,
+        "exchange_total_count": exchange_total_count,
         "my_sid": viewer_sid,
     }
 
@@ -547,11 +553,7 @@ def on_draw_card():
         return
     if room["draw_results"].get(sid) is not None:
         return
-    taken = set(v for v in room["draw_results"].values() if v is not None)
-    available = [c for c in range(1, 14) if c not in taken]
-    if not available:
-        available = list(range(1, 14))
-    room["draw_results"][sid] = random.choice(available)
+    room["draw_results"][sid] = random.randint(1, 13)
     emit_state_all(room_id)
     if all(room["draw_results"].get(s) is not None for s in eligible):
         process_draw(room_id)
@@ -621,8 +623,8 @@ def on_revolution():
     room["turn_direction"] = -room.get("turn_direction", 1)
     room["revolution"] = True
     room["can_revolution"] = False
-    deal_cards(room_id)
     compute_exchange_pairs(room_id)
+    check_revolution(room_id)
     socketio.emit("revolution_alert", {"message": "🔥 혁명 발생! 계급이 역전됩니다!"}, room=room_id)
     emit_state_all(room_id)
 
@@ -694,6 +696,8 @@ def on_next_round_ack():
     if not room or room["host"] != sid:
         return
     if room["state"] == "round_end":
+        room["turn_direction"] = 1
+        room["revolution"] = False
         deal_cards(room_id)
         compute_exchange_pairs(room_id)
         check_revolution(room_id)
