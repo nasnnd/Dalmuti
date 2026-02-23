@@ -3,6 +3,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import uuid
 import os
+import threading
 from collections import defaultdict, Counter
 
 app = Flask(__name__)
@@ -13,6 +14,8 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 rooms = {}
 players = {}
 room_players = defaultdict(list)
+sessions = {}
+disconnect_timers = {}
 
 # ── 카드 정의 ──────────────────────────────────────────────
 CARD_NAMES = {
@@ -92,6 +95,59 @@ def new_room(room_id, title, rounds, host_sid):
         "_draw_confirmed": [],
     }
 
+
+def _replace_sid_in_list(values, old_sid, new_sid):
+    return [new_sid if v == old_sid else v for v in values]
+
+
+def _replace_sid_in_room(room, old_sid, new_sid):
+    if room["host"] == old_sid:
+        room["host"] = new_sid
+    room["player_order"] = _replace_sid_in_list(room.get("player_order", []), old_sid, new_sid)
+    room["active_players"] = _replace_sid_in_list(room.get("active_players", []), old_sid, new_sid)
+    room["finished_order"] = _replace_sid_in_list(room.get("finished_order", []), old_sid, new_sid)
+    room["_draw_remaining"] = _replace_sid_in_list(room.get("_draw_remaining") or [], old_sid, new_sid) or None
+    room["_draw_confirmed"] = _replace_sid_in_list(room.get("_draw_confirmed", []), old_sid, new_sid)
+
+    if room.get("current_turn") == old_sid:
+        room["current_turn"] = new_sid
+    if room.get("last_player") == old_sid:
+        room["last_player"] = new_sid
+    if room.get("peasant_sid") == old_sid:
+        room["peasant_sid"] = new_sid
+
+    for key in ("ranks", "hands", "exchange_state", "draw_results", "win_counts"):
+        if old_sid in room.get(key, {}):
+            room[key][new_sid] = room[key].pop(old_sid)
+
+    pairs = []
+    for h, l in room.get("exchange_pairs", []):
+        h = new_sid if h == old_sid else h
+        l = new_sid if l == old_sid else l
+        pairs.append((h, l))
+    room["exchange_pairs"] = pairs
+
+
+def _migrate_player(old_sid, new_sid, token):
+    old = players.get(old_sid, {})
+    room_id = old.get("room")
+    players[new_sid] = {
+        "nickname": old.get("nickname"),
+        "room": room_id,
+        "ready": old.get("ready", False),
+        "token": token,
+    }
+
+    if room_id and room_id in room_players:
+        room_players[room_id] = [new_sid if s == old_sid else s for s in room_players[room_id]]
+        room = rooms.get(room_id)
+        if room:
+            _replace_sid_in_room(room, old_sid, new_sid)
+        join_room(room_id)
+        emit_state_all(room_id)
+
+    players.pop(old_sid, None)
+
 # ── 상태 브로드캐스트 ────────────────────────────────────────
 def emit_state_all(room_id):
     for sid in room_players.get(room_id, []):
@@ -152,7 +208,7 @@ def build_state(room_id, viewer_sid):
     draw_res_public = {}
     for s, v in room.get("draw_results", {}).items():
         nick = players.get(s, {}).get("nickname", "?")
-        draw_res_public[s] = {"nickname": nick, "value": v}
+        draw_res_public[s] = {"nickname": nick, "value": v, "card": card_info(v)}
 
     return {
         "room_id": room_id,
@@ -393,12 +449,48 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def on_connect():
-    players[request.sid] = {"nickname": None, "room": None, "ready": False}
+def on_connect(auth):
+    sid = request.sid
+    token = None
+    if isinstance(auth, dict):
+        token = str(auth.get("session_token", "")).strip()
+
+    if token and token in disconnect_timers:
+        disconnect_timers[token].cancel()
+        disconnect_timers.pop(token, None)
+
+    prev_sid = sessions.get(token) if token else None
+    if token and prev_sid and prev_sid != sid and prev_sid in players:
+        _migrate_player(prev_sid, sid, token)
+    else:
+        players[sid] = {"nickname": None, "room": None, "ready": False, "token": token}
+
+    if token:
+        sessions[token] = sid
 
 @socketio.on('disconnect')
 def on_disconnect():
     sid = request.sid
+    token = players.get(sid, {}).get("token")
+
+    if token:
+        def delayed_cleanup():
+            latest_sid = sessions.get(token)
+            if latest_sid != sid:
+                return
+            room_id = players.get(sid, {}).get("room")
+            if room_id:
+                _handle_leave(sid, room_id)
+            players.pop(sid, None)
+            sessions.pop(token, None)
+            disconnect_timers.pop(token, None)
+
+        timer = threading.Timer(25.0, delayed_cleanup)
+        timer.daemon = True
+        disconnect_timers[token] = timer
+        timer.start()
+        return
+
     room_id = players.get(sid, {}).get("room")
     if room_id:
         _handle_leave(sid, room_id)
