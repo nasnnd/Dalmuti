@@ -681,6 +681,33 @@
     transform: translate(-50%, -50%) scale(1);
   }
 
+  #orientation-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  #orientation-guard.hidden { display: none; }
+  .orientation-box {
+    max-width: 420px;
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 14px;
+    padding: 20px;
+    background: linear-gradient(160deg, #2c1810, #1a1210);
+  }
+  .orientation-title {
+    color: var(--gold);
+    font-size: 22px;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif KR', serif;
+  }
+  .orientation-desc { color: var(--text-dim); font-size: 14px; }
+
   /* 스크롤바 */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -855,12 +882,21 @@
 <!-- 혁명 배너 -->
 <div id="revolution-banner">🔥 혁명! 계급 역전!</div>
 
+<div id="orientation-guard" class="hidden">
+  <div class="orientation-box">
+    <div class="orientation-title">📱 가로 모드로 돌려주세요</div>
+    <div class="orientation-desc">모바일 세로 화면에서는 조작 버튼이 겹칠 수 있습니다.<br>원활한 플레이를 위해 화면을 가로로 회전해 주세요.</div>
+  </div>
+</div>
+
 <script>
 // ══════════════════════════════════════════
 // 상태
 // ══════════════════════════════════════════
-const socket = io();
-let myNick = null;
+const SESSION_TOKEN_KEY = 'dalmuti_session_token';
+const sessionToken = getOrCreateSessionToken();
+const socket = io({ auth: { session_token: sessionToken } });
+let myNick = localStorage.getItem('dalmuti_nickname') || null;
 let mySid = null;
 let currentRoomId = null;
 let gameState = null;
@@ -869,6 +905,23 @@ let selectedCardIndices = [];
 // ══════════════════════════════════════════
 // 유틸
 // ══════════════════════════════════════════
+function getOrCreateSessionToken() {
+  let token = localStorage.getItem(SESSION_TOKEN_KEY);
+  if (!token) {
+    token = `sess-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    localStorage.setItem(SESSION_TOKEN_KEY, token);
+  }
+  return token;
+}
+
+function updateOrientationGuard() {
+  const guard = document.getElementById('orientation-guard');
+  if (!guard) return;
+  const isMobile = window.matchMedia('(max-width: 900px)').matches;
+  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+  guard.classList.toggle('hidden', !(isMobile && isPortrait));
+}
+
 function showToast(msg, duration = 2500) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -942,22 +995,40 @@ document.getElementById('nick-input').addEventListener('keydown', e => {
 
 socket.on('nickname_ok', data => {
   myNick = data.nickname;
+  localStorage.setItem('dalmuti_nickname', myNick);
   document.getElementById('nick-show').textContent = myNick;
   document.getElementById('create-room-btn').disabled = false;
   closeNickEdit();
 });
 
-// 첫 진입시 자동으로 닉네임 설정 창
+// 첫 진입시 닉네임 상태 반영
 window.addEventListener('load', () => {
-  openNickEdit();
-  document.getElementById('nick-modal').querySelector('.btn-outline').style.display = 'none';
+  const cancelBtn = document.getElementById('nick-modal').querySelector('.btn-outline');
+  cancelBtn.style.display = myNick ? '' : 'none';
+
+  if (myNick) {
+    document.getElementById('nick-show').textContent = myNick;
+    document.getElementById('create-room-btn').disabled = false;
+    closeNickEdit();
+  } else {
+    openNickEdit();
+  }
+
+  updateOrientationGuard();
 });
+window.addEventListener('resize', updateOrientationGuard);
+window.addEventListener('orientationchange', updateOrientationGuard);
 
 // ══════════════════════════════════════════
 // 로비
 // ══════════════════════════════════════════
 socket.on('connect', () => {
   mySid = socket.id;
+  if (myNick) {
+    socket.emit('set_nickname', { nickname: myNick });
+    document.getElementById('nick-show').textContent = myNick;
+    document.getElementById('create-room-btn').disabled = false;
+  }
   socket.emit('get_lobby');
 });
 
@@ -1107,7 +1178,7 @@ function renderDraw(state, body) {
       <div class="draw-title">🃏 순서 뽑기</div>
       <div class="draw-desc">가장 낮은 숫자를 뽑은 사람이 달무티(왕)가 됩니다.</div>
       <button class="draw-deck-btn" ${myResult ? 'disabled' : ''} onclick="drawCard()">
-        ${myResult ? `<span style="font-size:32px;color:var(--gold);font-weight:900">${myResult}</span>` : '🂠'}
+        ${myResult ? (state.draw_results[mySid]?.card ? cardHTML(state.draw_results[mySid].card, false, false) : `<span style="font-size:32px;color:var(--gold);font-weight:900">${myResult}</span>`) : '🂠'}
       </button>
       <div style="font-size:13px;color:var(--text-dim)">${remaining}/${total}명 뽑음</div>
       <div class="draw-results-list" id="draw-results-list"></div>
@@ -1118,7 +1189,7 @@ function renderDraw(state, body) {
     if (!info || info.value === null) return '';
     return `<div class="draw-result-item">
       <span>${escHtml(info.nickname)}</span>
-      <span class="draw-result-num">${info.value}</span>
+      ${info.card ? cardHTML(info.card, false, true) : `<span class="draw-result-num">${info.value}</span>`}
     </div>`;
   }).join('');
 }
@@ -1316,7 +1387,6 @@ function renderGameScreen(state) {
       <div class="table-right-space">${rightHTML}</div>
     </div>
     <div class="opponents-bottom">${bottomHTML}</div>
-    <div class="my-seat-row">${me ? oppCardHTML(me, state) : ''}</div>
     <div class="my-area">
       <div class="my-info">
         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
