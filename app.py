@@ -22,7 +22,7 @@ CARD_NAMES = {
     5:  ("수녀원장", "🕊️"),
     6:  ("기사",     "⚔️"),
     7:  ("재봉사",   "🧵"),
-    8:  ("석공",     "🪨"),
+    8:  ("석공",     "⚒️"),
     9:  ("요리사",   "🍳"),
     10: ("양치기",   "🐑"),
     11: ("광부",     "⛏️"),
@@ -37,7 +37,7 @@ MID_RANKS = [
     ("수녀원장", "🕊️"),
     ("기사",     "⚔️"),
     ("재봉사",   "🧵"),
-    ("석공",     "🪨"),
+    ("석공",     "⚒️"),
     ("광부",     "⛏️"),
 ]
 
@@ -590,7 +590,13 @@ def on_exchange_confirm():
     if not room or room["state"] != "exchange":
         return
     exch = room["exchange_state"].get(sid, {})
-    if exch.get("auto") is False and len(exch.get("selected", [])) != 2:
+    if exch.get("auto") is True:
+        auto_sel = sorted(room["hands"].get(sid, []))[:2]
+        if len(auto_sel) != 2:
+            emit('error_msg', {'message': '교환 가능한 카드가 부족합니다.'})
+            return
+        exch["selected"] = auto_sel
+    elif exch.get("auto") is False and len(exch.get("selected", [])) != 2:
         emit('error_msg', {'message': '카드 2장을 선택하세요.'})
         return
     exch["confirmed"] = True
@@ -682,7 +688,7 @@ def on_pass_turn():
         room["last_player"] = None
         room["pass_count"] = 0
         socketio.emit('info_msg', {
-            'message': '모든 플레이어가 패스했습니다. 이제 원하는 카드 조합으로 새로운 흐름을 시작하세요.'
+            'message': '모든 플레이어가 패스했습니다. 새로운 규칙을 정하세요.'
         }, room=next_sid)
     elif not last:
         # 아무도 안 냈고 한바퀴 돈 경우

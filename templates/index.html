@@ -1232,36 +1232,21 @@ function nextRound() {
 // - 홀수: 중간 계급이 우측 단독, 나머지 짝수처럼
 // - 내(me) 자리는 항상 하단 고정, 다른 플레이어를 재배치
 // ══════════════════════════════════════════
-function calcSeatLayout(allPlayers, mySid) {
-  // 계급순 정렬 (rank 1이 가장 높음)
+function calcSeatLayout(allPlayers) {
+  // 계급순 고정 배치
+  // 4인 예시: top=[1,2], bottom=[4,3]
   const sorted = [...allPlayers].sort((a, b) => a.rank - b.rank);
   const n = sorted.length;
-  const myIdx = sorted.findIndex(p => p.sid === mySid);
-
-  // 나를 기준으로 로테이션: 내 자리가 항상 맨 마지막(하단 중앙)에 오도록
-  // 시계방향 배열에서 나를 마지막으로 회전
-  const rotated = [];
-  for (let i = 0; i < n; i++) {
-    rotated.push(sorted[(myIdx + 1 + i) % n]);
-  }
-  // rotated[0..n-2] = 상대들 (계급 순서 유지), rotated[n-1] = 나
-
-  const others = rotated.slice(0, n - 1); // 상대방들
-
   let top = [], bottom = [], right = null;
 
-  if (others.length === 0) {
-    // 1인 (이론상 없지만)
-  } else if (others.length % 2 === 0) {
-    // 짝수 명수: 상단 절반, 하단 절반
-    const half = others.length / 2;
-    top = others.slice(0, half);
-    bottom = others.slice(half).reverse(); // 하단은 우→좌 순서로 역전
+  if (n % 2 === 0) {
+    const half = n / 2;
+    top = sorted.slice(0, half);
+    bottom = sorted.slice(half).reverse();
   } else {
-    // 홀수 명수: 중앙 1명 우측, 나머지 짝수처럼
-    const midIdx = Math.floor(others.length / 2);
-    right = others[midIdx];
-    const rest = others.filter((_, i) => i !== midIdx);
+    const midIdx = Math.floor(n / 2);
+    right = sorted[midIdx];
+    const rest = sorted.filter((_, i) => i !== midIdx);
     const half = rest.length / 2;
     top = rest.slice(0, half);
     bottom = rest.slice(half).reverse();
@@ -1298,7 +1283,7 @@ function renderGameScreen(state) {
   const area = document.getElementById('game-area');
 
   // ── 좌석 배치 계산 ──
-  const { top, bottom, right } = calcSeatLayout(state.players, mySid);
+  const { top, bottom, right } = calcSeatLayout(state.players);
 
   const topHTML    = top.map(p => oppCardHTML(p, state)).join('');
   const bottomHTML = bottom.map(p => oppCardHTML(p, state)).join('');
