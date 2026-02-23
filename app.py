@@ -2,6 +2,8 @@ from flask import Flask, render_template, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 import random
 import uuid
+import os
+import threading
 from collections import defaultdict, Counter
 
 app = Flask(__name__)
@@ -12,6 +14,8 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 rooms = {}
 players = {}
 room_players = defaultdict(list)
+sessions = {}
+disconnect_timers = {}
 
 # ── 카드 정의 ──────────────────────────────────────────────
 CARD_NAMES = {
@@ -22,7 +26,7 @@ CARD_NAMES = {
     5:  ("수녀원장", "🕊️"),
     6:  ("기사",     "⚔️"),
     7:  ("재봉사",   "🧵"),
-    8:  ("석공",     "🪨"),
+    8:  ("석공",     "⚒️"),
     9:  ("요리사",   "🍳"),
     10: ("양치기",   "🐑"),
     11: ("광부",     "⛏️"),
@@ -37,35 +41,7 @@ MID_RANKS = [
     ("수녀원장", "🕊️"),
     ("기사",     "⚔️"),
     ("재봉사",   "🧵"),
-    ("석공",     "🪨"),
-    ("광부",     "⛏️"),
-]
-
-def get_rank_display(rank, total):
-    if rank == 1:
-        return ("달무티", "👑")
-    if rank == total:
-        return ("농노", "🌾")
-    return MID_RANKS[min(rank - 2, len(MID_RANKS) - 1)]
-
-def make_deck():
-    deck = []
-    for num in range(1, 13):
-        for _ in range(num):
-            deck.append(num)
-    deck.append(13)
-    deck.append(13)
-    random.shuffle(deck)
-    return deck
-
-def card_info(num):
-    name, emoji = CARD_NAMES[num]
-    return {"num": num, "name": name, "emoji": emoji}
-
-def new_room(room_id, title, rounds, host_sid):
-    return {
-        "id": room_id,
-        "title": title,
+@@ -70,50 +73,103 @@ def new_room(room_id, title, rounds, host_sid):
         "rounds": rounds,
         "current_round": 0,
         "host": host_sid,
@@ -90,6 +66,59 @@ def new_room(room_id, title, rounds, host_sid):
         "_draw_remaining": None,
         "_draw_confirmed": [],
     }
+
+
+def _replace_sid_in_list(values, old_sid, new_sid):
+    return [new_sid if v == old_sid else v for v in values]
+
+
+def _replace_sid_in_room(room, old_sid, new_sid):
+    if room["host"] == old_sid:
+        room["host"] = new_sid
+    room["player_order"] = _replace_sid_in_list(room.get("player_order", []), old_sid, new_sid)
+    room["active_players"] = _replace_sid_in_list(room.get("active_players", []), old_sid, new_sid)
+    room["finished_order"] = _replace_sid_in_list(room.get("finished_order", []), old_sid, new_sid)
+    room["_draw_remaining"] = _replace_sid_in_list(room.get("_draw_remaining") or [], old_sid, new_sid) or None
+    room["_draw_confirmed"] = _replace_sid_in_list(room.get("_draw_confirmed", []), old_sid, new_sid)
+
+    if room.get("current_turn") == old_sid:
+        room["current_turn"] = new_sid
+    if room.get("last_player") == old_sid:
+        room["last_player"] = new_sid
+    if room.get("peasant_sid") == old_sid:
+        room["peasant_sid"] = new_sid
+
+    for key in ("ranks", "hands", "exchange_state", "draw_results", "win_counts"):
+        if old_sid in room.get(key, {}):
+            room[key][new_sid] = room[key].pop(old_sid)
+
+    pairs = []
+    for h, l in room.get("exchange_pairs", []):
+        h = new_sid if h == old_sid else h
+        l = new_sid if l == old_sid else l
+        pairs.append((h, l))
+    room["exchange_pairs"] = pairs
+
+
+def _migrate_player(old_sid, new_sid, token):
+    old = players.get(old_sid, {})
+    room_id = old.get("room")
+    players[new_sid] = {
+        "nickname": old.get("nickname"),
+        "room": room_id,
+        "ready": old.get("ready", False),
+        "token": token,
+    }
+
+    if room_id and room_id in room_players:
+        room_players[room_id] = [new_sid if s == old_sid else s for s in room_players[room_id]]
+        room = rooms.get(room_id)
+        if room:
+            _replace_sid_in_room(room, old_sid, new_sid)
+        join_room(room_id)
+        emit_state_all(room_id)
+
+    players.pop(old_sid, None)
 
 # ── 상태 브로드캐스트 ────────────────────────────────────────
 def emit_state_all(room_id):
@@ -116,16 +145,7 @@ def build_state(room_id, viewer_sid):
             "nickname": p.get("nickname", "?"),
             "ready": p.get("ready", False),
             "rank": rank,
-            "rank_name": rname,
-            "rank_emoji": remoji,
-            "hand_count": len(room["hands"].get(s, [])),
-            "finished": s in room.get("finished_order", []),
-            "finish_rank": finished_rank,
-            "is_host": s == room["host"],
-        })
-
-    my_hand = [card_info(c) for c in room["hands"].get(viewer_sid, [])]
-    table = [card_info(c) for c in room["table_cards"]]
+@@ -130,51 +186,51 @@ def build_state(room_id, viewer_sid):
     exch = room["exchange_state"].get(viewer_sid, {})
     my_exchange = {
         "selected": [card_info(c) for c in exch.get("selected", [])],
@@ -133,6 +153,10 @@ def build_state(room_id, viewer_sid):
         "auto": exch.get("auto", False),
         "no_pair": exch.get("auto") is None,
     }
+
+    exchange_state = room.get("exchange_state", {})
+    exchange_confirmed_count = sum(1 for ex in exchange_state.values() if ex.get("confirmed"))
+    exchange_total_count = len(exchange_state)
 
     my_pair_sid = None
     my_pair_role = None
@@ -147,7 +171,7 @@ def build_state(room_id, viewer_sid):
     draw_res_public = {}
     for s, v in room.get("draw_results", {}).items():
         nick = players.get(s, {}).get("nickname", "?")
-        draw_res_public[s] = {"nickname": nick, "value": v}
+        draw_res_public[s] = {"nickname": nick, "value": v, "card": card_info(v)}
 
     return {
         "room_id": room_id,
@@ -172,183 +196,8 @@ def build_state(room_id, viewer_sid):
         "can_revolution": room.get("can_revolution") and viewer_sid == room.get("peasant_sid"),
         "revolution": room.get("revolution", False),
         "turn_direction": room.get("turn_direction", 1),
-        "my_sid": viewer_sid,
-    }
-
-def emit_lobby():
-    data = []
-    for rid, room in rooms.items():
-        data.append({
-            "id": rid,
-            "title": room["title"],
-            "rounds": room["rounds"],
-            "player_count": len(room_players[rid]),
-            "state": room["state"],
-        })
-    socketio.emit("lobby_update", data)
-
-# ── 뽑기 로직 ───────────────────────────────────────────────
-def start_draw(room_id):
-    room = rooms[room_id]
-    room["state"] = "draw"
-    room["draw_results"] = {}
-    room["_draw_remaining"] = None
-    room["_draw_confirmed"] = []
-    emit_state_all(room_id)
-
-def process_draw(room_id):
-    room = rooms[room_id]
-    results = room["draw_results"]
-    remaining = room.get("_draw_remaining")
-    sids_drew = remaining if remaining else room_players[room_id]
-
-    if not all(results.get(s) is not None for s in sids_drew):
-        return
-
-    counts = Counter(results.values())
-    unique_sids = sorted([s for s in sids_drew if counts[results[s]] == 1], key=lambda s: results[s])
-    dup_sids = [s for s in sids_drew if counts[results[s]] > 1]
-
-    confirmed = room.get("_draw_confirmed", [])
-
-    if not dup_sids:
-        final_order = confirmed + unique_sids
-        room["player_order"] = final_order
-        room["ranks"] = {s: i + 1 for i, s in enumerate(final_order)}
-        room["_draw_remaining"] = None
-        room["_draw_confirmed"] = []
-        room["state"] = "exchange"
-        n = len(final_order)
-        room["win_counts"] = {s: 0 for s in final_order}
-        deal_cards(room_id)
-        compute_exchange_pairs(room_id)
-        check_revolution(room_id)
-        emit_state_all(room_id)
-    else:
-        room["_draw_confirmed"] = confirmed + unique_sids
-        room["_draw_remaining"] = dup_sids
-        room["draw_results"] = {}
-        socketio.emit("redraw_needed", {
-            "redraw_players": [players[s]["nickname"] for s in dup_sids]
-        }, room=room_id)
-        emit_state_all(room_id)
-
-# ── 카드 배분 ───────────────────────────────────────────────
-def deal_cards(room_id):
-    room = rooms[room_id]
-    order = room["player_order"]
-    deck = make_deck()
-    n = len(order)
-    base = len(deck) // n
-    extra = len(deck) % n
-    hands = {}
-    idx = 0
-    bonus_start = n - extra
-    for i, s in enumerate(order):
-        cnt = base + (1 if i >= bonus_start else 0)
-        hands[s] = sorted(deck[idx:idx + cnt])
-        idx += cnt
-    room["hands"] = hands
-
-# ── 교환 쌍 ─────────────────────────────────────────────────
-def compute_exchange_pairs(room_id):
-    room = rooms[room_id]
-    order = room["player_order"]
-    n = len(order)
-    pairs = []
-    for i in range(n // 2):
-        h = order[i]
-        l = order[n - 1 - i]
-        pairs.append((h, l))
-    room["exchange_pairs"] = pairs
-    room["exchange_state"] = {}
-    for (h, l) in pairs:
-        low_hand = sorted(room["hands"][l])
-        auto_sel = low_hand[:2]
-        room["exchange_state"][l] = {"selected": auto_sel, "confirmed": False, "auto": True}
-        room["exchange_state"][h] = {"selected": [], "confirmed": False, "auto": False}
-    if n % 2 == 1:
-        mid = order[n // 2]
-        room["exchange_state"][mid] = {"selected": [], "confirmed": True, "auto": None}
-
-def check_revolution(room_id):
-    room = rooms[room_id]
-    if not room["player_order"]:
-        return
-    peasant = room["player_order"][-1]
-    has_rev = room["hands"].get(peasant, []).count(13) >= 2
-    room["can_revolution"] = has_rev
-    room["peasant_sid"] = peasant
-
-def do_exchange(room_id, h, l):
-    room = rooms[room_id]
-    h_sel = room["exchange_state"][h]["selected"]
-    l_sel = room["exchange_state"][l]["selected"]
-    for c in h_sel:
-        room["hands"][h].remove(c)
-        room["hands"][l].append(c)
-    for c in l_sel:
-        room["hands"][l].remove(c)
-        room["hands"][h].append(c)
-    room["hands"][h] = sorted(room["hands"][h])
-    room["hands"][l] = sorted(room["hands"][l])
-
-def all_exchanged(room_id):
-    room = rooms[room_id]
-    for (h, l) in room["exchange_pairs"]:
-        if not room["exchange_state"].get(h, {}).get("confirmed"):
-            return False
-        if not room["exchange_state"].get(l, {}).get("confirmed"):
-            return False
-    order = room["player_order"]
-    n = len(order)
-    if n % 2 == 1:
-        mid = order[n // 2]
-        if not room["exchange_state"].get(mid, {}).get("confirmed"):
-            return False
-    return True
-
-# ── 게임 진행 ───────────────────────────────────────────────
-def resolve_jester(cards):
-    non_j = [c for c in cards if c != 13]
-    if not non_j:
-        return 13
-    return non_j[0]
-
-def can_play_cards(cards, table_cards):
-    if not table_cards:
-        return len(cards) > 0
-    if len(cards) != len(table_cards):
-        return False
-    play_val = resolve_jester(cards)
-    table_val = resolve_jester(table_cards)
-    return play_val < table_val
-
-def start_playing(room_id):
-    room = rooms[room_id]
-    room["state"] = "playing"
-    room["table_cards"] = []
-    room["last_player"] = None
-    room["pass_count"] = 0
-    room["active_players"] = list(room["player_order"])
-    room["finished_order"] = []
-    room["current_turn"] = room["player_order"][0]
-    emit_state_all(room_id)
-
-def get_next_active(room_id, from_sid):
-    room = rooms[room_id]
-    active = room["active_players"]
-    if not active:
-        return None
-    if from_sid not in active:
-        return active[0]
-    idx = active.index(from_sid)
-    d = room["turn_direction"]
-    return active[(idx + d) % len(active)]
-
-def end_round(room_id):
-    room = rooms[room_id]
-    active = room["active_players"]
+        "exchange_confirmed_count": exchange_confirmed_count,
+@@ -371,56 +427,92 @@ def end_round(room_id):
     if active:
         room["finished_order"].append(active[0])
         active.clear()
@@ -374,12 +223,48 @@ def index():
     return render_template('index.html')
 
 @socketio.on('connect')
-def on_connect():
-    players[request.sid] = {"nickname": None, "room": None, "ready": False}
+def on_connect(auth):
+    sid = request.sid
+    token = None
+    if isinstance(auth, dict):
+        token = str(auth.get("session_token", "")).strip()
+
+    if token and token in disconnect_timers:
+        disconnect_timers[token].cancel()
+        disconnect_timers.pop(token, None)
+
+    prev_sid = sessions.get(token) if token else None
+    if token and prev_sid and prev_sid != sid and prev_sid in players:
+        _migrate_player(prev_sid, sid, token)
+    else:
+        players[sid] = {"nickname": None, "room": None, "ready": False, "token": token}
+
+    if token:
+        sessions[token] = sid
 
 @socketio.on('disconnect')
 def on_disconnect():
     sid = request.sid
+    token = players.get(sid, {}).get("token")
+
+    if token:
+        def delayed_cleanup():
+            latest_sid = sessions.get(token)
+            if latest_sid != sid:
+                return
+            room_id = players.get(sid, {}).get("room")
+            if room_id:
+                _handle_leave(sid, room_id)
+            players.pop(sid, None)
+            sessions.pop(token, None)
+            disconnect_timers.pop(token, None)
+
+        timer = threading.Timer(25.0, delayed_cleanup)
+        timer.daemon = True
+        disconnect_timers[token] = timer
+        timer.start()
+        return
+
     room_id = players.get(sid, {}).get("room")
     if room_id:
         _handle_leave(sid, room_id)
@@ -535,11 +420,7 @@ def on_draw_card():
         return
     if room["draw_results"].get(sid) is not None:
         return
-    taken = set(v for v in room["draw_results"].values() if v is not None)
-    available = [c for c in range(1, 14) if c not in taken]
-    if not available:
-        available = list(range(1, 14))
-    room["draw_results"][sid] = random.choice(available)
+    room["draw_results"][sid] = random.randint(1, 13)
     emit_state_all(room_id)
     if all(room["draw_results"].get(s) is not None for s in eligible):
         process_draw(room_id)
@@ -576,7 +457,13 @@ def on_exchange_confirm():
     if not room or room["state"] != "exchange":
         return
     exch = room["exchange_state"].get(sid, {})
-    if exch.get("auto") is False and len(exch.get("selected", [])) != 2:
+    if exch.get("auto") is True:
+        auto_sel = sorted(room["hands"].get(sid, []))[:2]
+        if len(auto_sel) != 2:
+            emit('error_msg', {'message': '교환 가능한 카드가 부족합니다.'})
+            return
+        exch["selected"] = auto_sel
+    elif exch.get("auto") is False and len(exch.get("selected", [])) != 2:
         emit('error_msg', {'message': '카드 2장을 선택하세요.'})
         return
     exch["confirmed"] = True
@@ -609,8 +496,8 @@ def on_revolution():
     room["turn_direction"] = -room.get("turn_direction", 1)
     room["revolution"] = True
     room["can_revolution"] = False
-    deal_cards(room_id)
     compute_exchange_pairs(room_id)
+    check_revolution(room_id)
     socketio.emit("revolution_alert", {"message": "🔥 혁명 발생! 계급이 역전됩니다!"}, room=room_id)
     emit_state_all(room_id)
 
@@ -667,6 +554,9 @@ def on_pass_turn():
         room["table_cards"] = []
         room["last_player"] = None
         room["pass_count"] = 0
+        socketio.emit('info_msg', {
+            'message': '모든 플레이어가 패스했습니다. 새로운 규칙을 정하세요.'
+        }, room=next_sid)
     elif not last:
         # 아무도 안 냈고 한바퀴 돈 경우
         room["pass_count"] = room.get("pass_count", 0) + 1
@@ -682,6 +572,8 @@ def on_next_round_ack():
     if not room or room["host"] != sid:
         return
     if room["state"] == "round_end":
+        room["turn_direction"] = 1
+        room["revolution"] = False
         deal_cards(room_id)
         compute_exchange_pairs(room_id)
         check_revolution(room_id)
@@ -694,4 +586,12 @@ def on_next_round_ack():
         emit_state_all(room_id)
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    socketio.run(
+        app,
+        debug=debug,
+        host='0.0.0.0',
+        port=port,
+        allow_unsafe_werkzeug=True,
+    )
