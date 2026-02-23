@@ -14,6 +14,12 @@ pip install -r requirements.txt
 python app.py
 ```
 
+```bash
+# (선택) 배포 환경처럼 실행
+PORT=5000 FLASK_DEBUG=0 python app.py
+
+```
+
 → 브라우저에서 `http://localhost:5000` 접속
 
 여러 브라우저 탭/창으로 멀티플레이 테스트 가능합니다.
