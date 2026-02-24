@@ -372,7 +372,7 @@ def compute_exchange_pairs(room_id):
     for (h, l) in pairs:
         low_hand = sorted(room["hands"][l])
         auto_sel = low_hand[:2]
-        room["exchange_state"][l] = {"selected": auto_sel, "confirmed": False, "auto": True}
+        room["exchange_state"][l] = {"selected": auto_sel, "confirmed": True, "auto": True}
         room["exchange_state"][h] = {"selected": [], "confirmed": False, "auto": False}
     if n % 2 == 1:
         mid = order[n // 2]
