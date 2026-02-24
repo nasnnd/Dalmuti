@@ -194,8 +194,8 @@ def build_state(room_id, viewer_sid):
     }
 
     exchange_state = room.get("exchange_state", {})
-    exchange_confirmed_count = sum(1 for ex in exchange_state.values() if ex.get("confirmed"))
-    exchange_total_count = len(exchange_state)
+    exchange_confirmed_count = sum(1 for ex in exchange_state.values() if ex.get("auto") is not True and ex.get("confirmed"))
+    exchange_total_count = sum(1 for ex in exchange_state.values() if ex.get("auto") is not True)
 
     my_pair_sid = None
     my_pair_role = None
@@ -403,9 +403,11 @@ def do_exchange(room_id, h, l):
 def all_exchanged(room_id):
     room = rooms[room_id]
     for (h, l) in room["exchange_pairs"]:
-        if not room["exchange_state"].get(h, {}).get("confirmed"):
+        h_state = room["exchange_state"].get(h, {})
+        l_state = room["exchange_state"].get(l, {})
+        if not h_state.get("confirmed"):
             return False
-        if not room["exchange_state"].get(l, {}).get("confirmed"):
+        if l_state.get("auto") is not True and not l_state.get("confirmed"):
             return False
     order = room["player_order"]
     n = len(order)
@@ -561,7 +563,7 @@ def _handle_leave(sid, room_id):
         socketio.emit("game_interrupted", {
             "message": f"'{players.get(sid,{}).get('nickname','?')}' 님이 나가서 게임이 중단되었습니다."
         }, room=room_id)
-    leave_room(room_id)
+    socketio.server.leave_room(sid, room_id)
     if not room_players[room_id]:
         rooms.pop(room_id, None)
         room_players.pop(room_id, None)
@@ -742,9 +744,12 @@ def on_exchange_confirm():
     # 짝 모두 확인 시 실제 교환
     for (h, l) in room["exchange_pairs"]:
         if h == sid or l == sid:
-            hc = room["exchange_state"].get(h, {}).get("confirmed")
-            lc = room["exchange_state"].get(l, {}).get("confirmed")
-            if hc and lc:
+            h_state = room["exchange_state"].get(h, {})
+            l_state = room["exchange_state"].get(l, {})
+            hc = h_state.get("confirmed")
+            lc = l_state.get("confirmed")
+            auto_low = l_state.get("auto") is True
+            if hc and (lc or auto_low):
                 do_exchange(room_id, h, l)
     if all_exchanged(room_id):
         start_playing(room_id)
