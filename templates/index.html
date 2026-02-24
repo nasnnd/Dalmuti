@@ -1420,6 +1420,10 @@ function renderGameScreen(state) {
       <div class="table-right-space">${rightHTML}</div>
     </div>
     <div class="opponents-bottom">${bottomHTML}</div>
+    <div class="action-history">
+      <div class="action-history-title">최근 행동</div>
+      <div class="action-history-list">${historyHTML}</div>
+    </div>
     <div class="my-area">
       <div class="my-info">
         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
