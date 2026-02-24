@@ -470,7 +470,7 @@
   /* 테이블 */
   .game-table {
     flex: 1;
-    max-width: 560px;
+    max-width: 660px;
     background: radial-gradient(ellipse, #2c5f2e 0%, #1d4620 60%, #142f16 100%);
     border-radius: 60px;
     border: 4px solid rgba(201,168,76,0.35);
@@ -740,6 +740,33 @@
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
+
+  #orientation-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 400;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+  #orientation-guard.hidden { display: none; }
+  .orientation-box {
+    max-width: 420px;
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 14px;
+    padding: 20px;
+    background: linear-gradient(160deg, #2c1810, #1a1210);
+  }
+  .orientation-title {
+    color: var(--gold);
+    font-size: 22px;
+    margin-bottom: 8px;
+    font-family: 'Noto Serif KR', serif;
+  }
+  .orientation-desc { color: var(--text-dim); font-size: 14px; }
 
   /* 스크롤바 */
   ::-webkit-scrollbar { width: 6px; }
@@ -1590,6 +1617,7 @@ function renderGameScreen(state) {
   const handHTML = state.my_hand.map((c, idx) =>
     cardHTML({ ...c, idx }, canPlay, false, selectedCardIndices.includes(idx))
   ).join('');
+  const mySeatName = me ? String(me.nickname || '').split(' (나)')[0].trim() : '';
 
   area.innerHTML = `
     <div class="opponents-top">${topHTML}</div>
