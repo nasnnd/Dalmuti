@@ -282,6 +282,25 @@ def start_draw(room_id):
     room["draw_results"] = {}
     room["_draw_remaining"] = None
     room["_draw_confirmed"] = []
+    room["_draw_finalize_timer"] = None
+    emit_state_all(room_id)
+
+def finalize_draw_to_exchange(room_id):
+    room = rooms.get(room_id)
+    if not room or room.get("state") != "draw":
+        return
+    final_order = room.get("player_order", [])
+    if not final_order:
+        return
+    room["_draw_finalize_timer"] = None
+    room["ranks"] = {s: i + 1 for i, s in enumerate(final_order)}
+    room["_draw_remaining"] = None
+    room["_draw_confirmed"] = []
+    room["state"] = "exchange"
+    room["win_counts"] = {s: 0 for s in final_order}
+    deal_cards(room_id)
+    compute_exchange_pairs(room_id)
+    check_revolution(room_id)
     emit_state_all(room_id)
 
 def process_draw(room_id):
@@ -302,17 +321,17 @@ def process_draw(room_id):
     if not dup_sids:
         final_order = confirmed + unique_sids
         room["player_order"] = final_order
-        room["ranks"] = {s: i + 1 for i, s in enumerate(final_order)}
-        room["_draw_remaining"] = None
-        room["_draw_confirmed"] = []
-        room["state"] = "exchange"
-        n = len(final_order)
-        room["win_counts"] = {s: 0 for s in final_order}
-        deal_cards(room_id)
-        compute_exchange_pairs(room_id)
-        check_revolution(room_id)
+        timer = room.get("_draw_finalize_timer")
+        if timer:
+            timer.cancel()
+        room["_draw_finalize_timer"] = threading.Timer(1.6, finalize_draw_to_exchange, args=(room_id,))
+        room["_draw_finalize_timer"].start()
         emit_state_all(room_id)
     else:
+        timer = room.get("_draw_finalize_timer")
+        if timer:
+            timer.cancel()
+            room["_draw_finalize_timer"] = None
         room["_draw_confirmed"] = confirmed + unique_sids
         room["_draw_remaining"] = dup_sids
         room["draw_results"] = {}
