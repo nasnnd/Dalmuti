@@ -1354,7 +1354,9 @@ function renderGameScreen(state) {
   const area = document.getElementById('game-area');
 
   // ── 좌석 배치 계산 ──
-  const { top, bottom, right } = calcSeatLayout(state.players);
+  // 내 좌석은 하단 my-area에서만 렌더하고, 테이블 주변 좌석에는 제외
+  const opponentPlayers = state.players.filter(p => p.sid !== mySid);
+  const { top, bottom, right } = calcSeatLayout(opponentPlayers);
 
   const topHTML    = top.map(p => oppCardHTML(p, state)).join('');
   const bottomHTML = bottom.map(p => oppCardHTML(p, state)).join('');
