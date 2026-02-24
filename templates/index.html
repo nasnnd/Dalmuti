@@ -575,19 +575,29 @@
   }
 
   .hand-area {
+    width: 100%;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     justify-content: center;
-    max-height: 250px;
     overflow-y: auto;
-    padding: 4px;
+    overflow-x: hidden;
+    max-height: 260px;
+    padding: 4px 2px 6px;
   }
 
   .game-actions {
     display: flex;
     gap: 10px;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .between-actions {
+    width: 100%;
+    max-width: 820px;
+    display: flex;
+    justify-content: center;
   }
 
   /* ══════════════════════════════════════════
@@ -832,21 +842,29 @@
     .opp-count { font-size: 10px; }
 
     .table-row {
-      flex-direction: column;
-      gap: 8px;
+      flex-direction: row;
+      align-items: stretch;
+      gap: 6px;
       flex: 0;
     }
-    .table-left-space,
-    .table-right-space {
+    .table-left-space {
       display: none;
       width: 0;
     }
+    .table-right-space {
+      width: 86px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
     .game-table {
-      width: 100%;
-      max-width: 100%;
+      width: auto;
+      max-width: none;
       min-height: 140px;
       border-radius: 24px;
       padding: 14px 10px;
+      flex: 1;
     }
 
     .action-history {
@@ -861,19 +879,33 @@
       gap: 6px;
     }
     .hand-area {
-      max-height: 35vh;
-      padding-bottom: 2px;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      justify-items: center;
+      align-items: start;
+      gap: 6px;
+      max-height: 42vh;
+      min-height: 96px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-bottom: 4px;
     }
+    .between-actions { max-width: 100%; }
     .game-actions {
       width: 100%;
       justify-content: center;
       flex-wrap: wrap;
       gap: 8px;
+      position: sticky;
+      bottom: 0;
+      padding: 4px 0 calc(4px + env(safe-area-inset-bottom));
+      background: linear-gradient(to top, rgba(26,18,16,0.95), rgba(26,18,16,0.55), transparent);
     }
 
     .card {
-      width: 50px;
-      height: 72px;
+      width: 100%;
+      max-width: 56px;
+      height: 76px;
     }
     .card-num { font-size: 16px; }
     .card-emoji { font-size: 15px; }
@@ -1500,6 +1532,14 @@ function calcSeatLayout(allPlayers) {
   const n = sorted.length;
   let top = [], bottom = [], right = null;
 
+  // 총 3인 게임(상대 2명)에서는 1명을 상단, 1명을 우측에 고정
+  // 하단은 비워서 테이블 주변 배치가 어긋나지 않게 함
+  if (n === 2) {
+    top = [sorted[0]];
+    right = sorted[1];
+    return { top, bottom, right };
+  }
+
   if (n % 2 === 0) {
     const half = n / 2;
     top = sorted.slice(0, half);
@@ -1587,6 +1627,14 @@ function renderGameScreen(state) {
       <div class="action-history-title">최근 행동</div>
       <div class="action-history-list">${historyHTML}</div>
     </div>
+    ${!me?.finished && isMyTurn ? `
+      <div class="between-actions">
+        <div class="game-actions">
+          <button class="btn btn-outline" onclick="doPass()">패스</button>
+          <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCardIndices.length}장)</button>
+        </div>
+      </div>
+    ` : ''}
     <div class="my-area">
       <div class="my-info">
         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? escHtml(me.nickname) : ''}</div>
@@ -1595,12 +1643,6 @@ function renderGameScreen(state) {
       </div>
       ${!me?.finished ? `
         <div class="hand-area" id="hand-area">${handHTML}</div>
-        ${isMyTurn ? `
-          <div class="game-actions">
-            <button class="btn btn-outline" onclick="doPass()">패스</button>
-            <button class="btn btn-gold" onclick="doPlayCards()">카드 내기 (${selectedCardIndices.length}장)</button>
-          </div>
-        ` : ''}
       ` : ''}
     </div>
   `;
@@ -1647,8 +1689,17 @@ function confirmExchange() {
 function doRevolution() { socket.emit('revolution'); }
 
 function doPlayCards() {
+  if (!gameState || !Array.isArray(gameState.my_hand)) {
+    showToast('손패 정보를 불러오는 중입니다. 잠시 후 다시 시도하세요.');
+    return;
+  }
   if (selectedCardIndices.length === 0) { showToast('카드를 선택하세요.'); return; }
-  socket.emit('play_cards', { cards: selectedNumbersFromHand(gameState.my_hand) });
+  const cards = selectedNumbersFromHand(gameState.my_hand);
+  if (cards.length === 0) {
+    showToast('선택한 카드를 다시 확인해 주세요.');
+    return;
+  }
+  socket.emit('play_cards', { cards });
   selectedCardIndices = [];
 }
 
