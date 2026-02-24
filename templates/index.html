@@ -1576,13 +1576,26 @@ function oppCardHTML(p, state) {
 // 게임 화면 렌더링
 // ══════════════════════════════════════════
 function renderGameScreen(state) {
-  const isMyTurn = state.current_turn === mySid;
-  const me = state.players.find(p => p.sid === mySid);
+  const players = Array.isArray(state.players) ? state.players : [];
+  const mySidInState = state.my_sid || mySid;
+  const isMyTurn = state.current_turn === mySidInState;
+  const myHand = Array.isArray(state.my_hand) ? state.my_hand : [];
+  const finishedOrder = Array.isArray(state.finished_order) ? state.finished_order : [];
+  const me = players.find(p => p.sid === mySidInState) || null;
+  const meFinished = me ? !!me.finished : finishedOrder.includes(mySidInState);
+
+  if (!me) {
+    console.warn('[renderGameScreen] me not found in players; using fallback', {
+      mySidInState,
+      playerCount: players.length,
+      currentTurn: state.current_turn,
+    });
+  }
 
   document.getElementById('g-round').textContent = `${state.current_round + 1} / ${state.rounds} 라운드`;
   document.getElementById('g-title').textContent = state.title;
 
-  const turnPlayer = state.players.find(p => p.sid === state.current_turn);
+  const turnPlayer = players.find(p => p.sid === state.current_turn);
   document.getElementById('g-turn-info').textContent =
     isMyTurn ? '🔥 내 차례입니다!' : (turnPlayer ? `⏳ ${turnPlayer.nickname}의 차례` : '');
 
@@ -1590,7 +1603,8 @@ function renderGameScreen(state) {
 
   // ── 좌석 배치 계산 ──
   // 내 좌석은 하단 my-area에서만 렌더하고, 테이블 주변 좌석에는 제외
-  const { top, bottom, right } = calcSeatLayout(state.players);
+  const others = players.filter(p => p.sid !== mySidInState);
+  const { top, bottom, right } = calcSeatLayout(others);
 
   const topHTML    = top.map(p => oppCardHTML(p, state)).join('');
   const bottomHTML = bottom.map(p => oppCardHTML(p, state)).join('');
@@ -1612,9 +1626,9 @@ function renderGameScreen(state) {
   // ── 내 손패 ──
   const prevHand = document.getElementById('hand-area');
   if (prevHand) handScrollTop = prevHand.scrollTop;
-  selectedCardIndices = selectedCardIndices.filter(i => i >= 0 && i < state.my_hand.length);
-  const canPlay = isMyTurn && !me?.finished;
-  const handHTML = state.my_hand.map((c, idx) =>
+  selectedCardIndices = selectedCardIndices.filter(i => i >= 0 && i < myHand.length);
+  const canPlay = isMyTurn && !meFinished;
+  const handHTML = myHand.map((c, idx) =>
     cardHTML({ ...c, idx }, canPlay, false, selectedCardIndices.includes(idx))
   ).join('');
   const mySeatName = me ? String(me.nickname || '').split(' (나)')[0].trim() : '';
@@ -1634,7 +1648,7 @@ function renderGameScreen(state) {
       <div class="action-history-title">최근 행동</div>
       <div class="action-history-list">${historyHTML}</div>
     </div>
-    ${!me?.finished && isMyTurn ? `
+    ${!meFinished && isMyTurn ? `
       <div class="between-actions">
         <div class="game-actions">
           <button class="btn btn-outline" onclick="doPass()">패스</button>
@@ -1645,10 +1659,10 @@ function renderGameScreen(state) {
     <div class="my-area">
       <div class="my-info">
         <div class="my-name-badge">${me ? me.rank_emoji : ''} ${me ? me.rank_name : ''}</div>
-        <div class="my-card-count">남은 카드: ${state.my_hand.length}장</div>
-        ${me?.finished ? '<div style="color:var(--gold);font-size:13px">✓ 완료!</div>' : ''}
+        <div class="my-card-count">남은 카드: ${myHand.length}장</div>
+        ${meFinished ? '<div style="color:var(--gold);font-size:13px">✓ 완료!</div>' : ''}
       </div>
-      ${!me?.finished ? `
+      ${!meFinished ? `
         <div class="hand-area" id="hand-area">${handHTML}</div>
       ` : ''}
     </div>
