@@ -830,13 +830,29 @@ def on_pass_turn():
         room["pass_count"] = 0
         room["trick_pass_target"] = 0
         room["current_turn"] = leader
-        socketio.emit('info_msg', {
-            'message': '모든 플레이어가 패스했습니다. 새로운 규칙을 정하세요.'
-        }, room=room_id)
+        for s in room_players.get(room_id, []):
+            if s == leader:
+                msg = '모든 플레이어가 패스했습니다. 새로운 규칙을 정하세요.'
+            else:
+                msg = '모든 플레이어가 패스했습니다.'
+            socketio.emit('info_msg', {'message': msg}, to=s)
     else:
         room["current_turn"] = next_sid
 
     emit_state_all(room_id)
+
+@socketio.on('return_to_lobby')
+def on_return_to_lobby():
+    sid = request.sid
+    room_id = players.get(sid, {}).get("room")
+    room = rooms.get(room_id)
+    if not room or room.get("state") != "game_end":
+        return
+    room["state"] = "lobby"
+    for s in room_players.get(room_id, []):
+        players[s]["ready"] = False
+    emit_state_all(room_id)
+    emit_lobby()
 
 @socketio.on('next_round_ack')
 def on_next_round_ack():
