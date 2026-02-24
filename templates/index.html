@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>달무티 온라인</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
 <style>
@@ -31,12 +31,12 @@
     font-family: 'Noto Sans KR', sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow: hidden;
   }
 
   /* ── 화면 전환 ── */
-  .screen { display: none; width: 100vw; height: 100vh; }
+  .screen { display: none; width: 100vw; height: var(--app-height, 100dvh); }
   .screen.active { display: flex; }
 
   /* ══════════════════════════════════════════
@@ -1055,12 +1055,6 @@
 <!-- 혁명 배너 -->
 <div id="revolution-banner">🔥 혁명! 계급 역전!</div>
 
-<div id="orientation-guard" class="hidden">
-  <div class="orientation-box">
-    <div class="orientation-title">📱 가로 모드로 돌려주세요</div>
-    <div class="orientation-desc">모바일 세로 화면에서는 조작 버튼이 겹칠 수 있습니다.<br>원활한 플레이를 위해 화면을 가로로 회전해 주세요.</div>
-  </div>
-</div>
 
 <script>
 // ══════════════════════════════════════════
@@ -1087,12 +1081,14 @@ function getOrCreateSessionToken() {
   return token;
 }
 
-function updateOrientationGuard() {
-  const guard = document.getElementById('orientation-guard');
-  if (!guard) return;
-  const isMobile = window.matchMedia('(max-width: 900px)').matches;
-  const isPortrait = window.matchMedia('(orientation: portrait)').matches;
-  guard.classList.toggle('hidden', !(isMobile && isPortrait));
+function refreshAppHeight() {
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--app-height', `${Math.round(vh)}px`);
+}
+
+function attemptHideMobileAddressBar() {
+  if (!window.matchMedia('(max-width: 900px)').matches) return;
+  setTimeout(() => window.scrollTo(0, 1), 60);
 }
 
 function showToast(msg, duration = 2500) {
@@ -1207,10 +1203,15 @@ window.addEventListener('load', () => {
     openNickEdit();
   }
 
-  updateOrientationGuard();
+  refreshAppHeight();
+  attemptHideMobileAddressBar();
 });
-window.addEventListener('resize', updateOrientationGuard);
-window.addEventListener('orientationchange', updateOrientationGuard);
+window.addEventListener('resize', refreshAppHeight);
+window.addEventListener('orientationchange', () => { refreshAppHeight(); attemptHideMobileAddressBar(); });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', refreshAppHeight);
+}
+window.addEventListener('touchstart', attemptHideMobileAddressBar, { passive: true });
 
 // ══════════════════════════════════════════
 // 로비
