@@ -93,6 +93,8 @@ def new_room(room_id, title, rounds, host_sid):
         "revolution": False,
         "_draw_remaining": None,
         "_draw_confirmed": [],
+        "trick_pass_target": 0,
+        "action_history": [],
     }
 
 
@@ -236,7 +238,30 @@ def build_state(room_id, viewer_sid):
         "exchange_confirmed_count": exchange_confirmed_count,
         "exchange_total_count": exchange_total_count,
         "my_sid": viewer_sid,
+        "action_history": room.get("action_history", []),
     }
+
+def add_action_history(room, message):
+    history = room.get("action_history", [])
+    history.append(message)
+    room["action_history"] = history[-12:]
+
+
+def card_set_name(cards):
+    val = resolve_jester(cards)
+    info = card_info(val)
+    return info["name"]
+
+
+def compute_trick_pass_target(room):
+    last = room.get("last_player")
+    active = room.get("active_players", [])
+    if not last:
+        return 0
+    if last in active:
+        return max(0, len(active) - 1)
+    return len(active)
+
 
 def emit_lobby():
     data = []
@@ -407,6 +432,8 @@ def start_playing(room_id):
     room["pass_count"] = 0
     room["active_players"] = list(room["player_order"])
     room["finished_order"] = []
+    room["trick_pass_target"] = 0
+    room["action_history"] = []
     room["current_turn"] = room["player_order"][0]
     emit_state_all(room_id)
 
@@ -754,12 +781,19 @@ def on_play_cards(data):
     room["table_cards"] = cards
     room["last_player"] = sid
     room["pass_count"] = 0
+
+    nick = players.get(sid, {}).get("nickname", "?")
+    add_action_history(room, f"{nick}님이 {card_set_name(cards)} {len(cards)}장을 냈습니다.")
+
     if not hand:
         room["finished_order"].append(sid)
-        room["active_players"].remove(sid)
+        if sid in room["active_players"]:
+            room["active_players"].remove(sid)
         if len(room["active_players"]) <= 1:
             end_round(room_id)
             return
+
+    room["trick_pass_target"] = compute_trick_pass_target(room)
     room["current_turn"] = get_next_active(room_id, sid)
     emit_state_all(room_id)
 
@@ -772,22 +806,36 @@ def on_pass_turn():
         return
     if room["current_turn"] != sid:
         return
-    next_sid = get_next_active(room_id, sid)
-    room["current_turn"] = next_sid
     last = room["last_player"]
-    # 마지막으로 낸 사람 차례로 돌아오면 테이블 초기화
-    if last and next_sid == last:
+    next_sid = get_next_active(room_id, sid)
+
+    nick = players.get(sid, {}).get("nickname", "?")
+    add_action_history(room, f"{nick}님이 패스했습니다.")
+
+    if not last:
+        room["current_turn"] = next_sid
+        emit_state_all(room_id)
+        return
+
+    room["pass_count"] = room.get("pass_count", 0) + 1
+    target = room.get("trick_pass_target") or compute_trick_pass_target(room)
+
+    if target > 0 and room["pass_count"] >= target:
+        if last in room["active_players"]:
+            leader = last
+        else:
+            leader = next_sid
         room["table_cards"] = []
         room["last_player"] = None
         room["pass_count"] = 0
+        room["trick_pass_target"] = 0
+        room["current_turn"] = leader
         socketio.emit('info_msg', {
             'message': '모든 플레이어가 패스했습니다. 새로운 규칙을 정하세요.'
-        }, room=next_sid)
-    elif not last:
-        # 아무도 안 냈고 한바퀴 돈 경우
-        room["pass_count"] = room.get("pass_count", 0) + 1
-        if room["pass_count"] >= len(room["active_players"]):
-            room["pass_count"] = 0
+        }, room=room_id)
+    else:
+        room["current_turn"] = next_sid
+
     emit_state_all(room_id)
 
 @socketio.on('next_round_ack')
