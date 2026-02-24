@@ -56,6 +56,8 @@
     flex-direction: column;
     gap: 20px;
     background: rgba(0,0,0,0.3);
+    overflow-y: auto;
+    min-height: 0;
   }
 
   .lobby-title {
@@ -763,10 +765,132 @@
   ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 3px; }
 
   /* 반응형 */
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
     #lobby-screen { flex-direction: column; overflow-y: auto; }
-    .lobby-left { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid rgba(201,168,76,0.2); }
-    .player-slots { grid-template-columns: repeat(2, 1fr); }
+    .lobby-left {
+      width: 100%;
+      min-width: unset;
+      border-right: none;
+      border-bottom: 1px solid rgba(201,168,76,0.2);
+      max-height: 52vh;
+    }
+    .lobby-right { padding: 18px 14px 20px; }
+
+    .room-header {
+      padding: 8px 10px;
+      min-height: 46px;
+      gap: 8px;
+    }
+    .room-header-title { font-size: 14px; }
+    .room-header-meta { font-size: 11px; }
+
+    .room-body {
+      overflow-y: auto;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+
+    .waiting-room,
+    .draw-phase,
+    .exchange-phase {
+      width: 100%;
+      padding: 12px;
+    }
+
+    .player-slots { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .player-slot { min-height: 68px; padding: 10px; }
+
+    .game-header {
+      padding: 6px 8px;
+      gap: 8px;
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+    .game-turn-info {
+      width: 100%;
+      margin-left: 0;
+      text-align: left;
+    }
+
+    .game-area {
+      padding: 8px;
+      gap: 8px;
+      overflow-y: auto;
+      justify-content: flex-start;
+      align-items: stretch;
+    }
+    .opponents-top,
+    .opponents-bottom {
+      max-width: 100%;
+      gap: 6px;
+    }
+    .opponent-card {
+      min-width: 82px;
+      padding: 6px 8px;
+    }
+    .opp-name { font-size: 12px; }
+    .opp-count { font-size: 10px; }
+
+    .table-row {
+      flex-direction: column;
+      gap: 8px;
+      flex: 0;
+    }
+    .table-left-space,
+    .table-right-space {
+      display: none;
+      width: 0;
+    }
+    .game-table {
+      width: 100%;
+      max-width: 100%;
+      min-height: 140px;
+      border-radius: 24px;
+      padding: 14px 10px;
+    }
+
+    .action-history {
+      max-width: 100%;
+      padding: 6px 8px;
+    }
+
+    .my-area { max-width: 100%; }
+    .my-info {
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+    }
+    .hand-area {
+      max-height: 35vh;
+      padding-bottom: 2px;
+    }
+    .game-actions {
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .card {
+      width: 50px;
+      height: 72px;
+    }
+    .card-num { font-size: 16px; }
+    .card-emoji { font-size: 15px; }
+    .card-name { font-size: 8px; }
+    .card-sm {
+      width: 44px;
+      height: 62px;
+    }
+    .card-sm .card-num { font-size: 13px; }
+    .card-sm .card-emoji { font-size: 12px; }
+    .card-sm .card-name { font-size: 7px; }
+
+    .my-turn-msg {
+      top: 8px;
+      font-size: 11px;
+      padding: 3px 8px;
+    }
   }
 
   .divider {
@@ -1230,10 +1354,7 @@ function renderLobby(state, body, isHost) {
       <div class="${p.ready ? 'ready-badge' : 'not-ready-badge'}">${p.ready ? '✓ 준비' : '대기중'}</div>
     </div>
   `).join('');
-  const empty = Array(Math.max(0, 9 - state.players.length)).fill(
-    '<div class="player-slot"><div style="color:var(--text-dim);font-size:12px">빈 자리</div></div>'
-  ).join('');
-  slots.innerHTML = filled + empty;
+  slots.innerHTML = filled;
 }
 
 function renderDraw(state, body) {
