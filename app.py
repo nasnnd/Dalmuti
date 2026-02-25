@@ -278,6 +278,9 @@ def emit_lobby():
 # ── 뽑기 로직 ───────────────────────────────────────────────
 def start_draw(room_id):
     room = rooms[room_id]
+    timer = room.get("_draw_finalize_timer")
+    if timer:
+        timer.cancel()
     room["state"] = "draw"
     room["draw_results"] = {}
     room["_draw_remaining"] = None
