@@ -278,6 +278,9 @@ def emit_lobby():
 # ── 뽑기 로직 ───────────────────────────────────────────────
 def start_draw(room_id):
     room = rooms[room_id]
+    timer = room.get("_draw_finalize_timer")
+    if timer:
+        timer.cancel()
     room["state"] = "draw"
     room["draw_results"] = {}
     room["_draw_remaining"] = None
@@ -584,7 +587,7 @@ def on_set_nickname(data):
         emit('error_msg', {'message': '닉네임은 2~10글자여야 합니다.'})
 
 @socketio.on('get_lobby')
-def on_get_lobby():
+def on_get_lobby(_data=None):
     emit_lobby()
 
 @socketio.on('create_room')
