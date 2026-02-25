@@ -372,11 +372,11 @@ def compute_exchange_pairs(room_id):
     for (h, l) in pairs:
         low_hand = sorted(room["hands"][l])
         auto_sel = low_hand[:2]
-        room["exchange_state"][l] = {"selected": auto_sel, "confirmed": True, "auto": True}
-        room["exchange_state"][h] = {"selected": [], "confirmed": False, "auto": False}
+        room["exchange_state"][l] = {"selected": auto_sel, "confirmed": False, "auto": True, "exchanged": False}
+        room["exchange_state"][h] = {"selected": [], "confirmed": False, "auto": False, "exchanged": False}
     if n % 2 == 1:
         mid = order[n // 2]
-        room["exchange_state"][mid] = {"selected": [], "confirmed": True, "auto": None}
+        room["exchange_state"][mid] = {"selected": [], "confirmed": True, "auto": None, "exchanged": True}
 
 def check_revolution(room_id):
     room = rooms[room_id]
@@ -399,6 +399,8 @@ def do_exchange(room_id, h, l):
         room["hands"][h].append(c)
     room["hands"][h] = sorted(room["hands"][h])
     room["hands"][l] = sorted(room["hands"][l])
+    room["exchange_state"][h]["exchanged"] = True
+    room["exchange_state"][l]["exchanged"] = True
 
 def all_exchanged(room_id):
     room = rooms[room_id]
@@ -749,7 +751,8 @@ def on_exchange_confirm():
             hc = h_state.get("confirmed")
             lc = l_state.get("confirmed")
             auto_low = l_state.get("auto") is True
-            if hc and (lc or auto_low):
+            already_exchanged = h_state.get("exchanged") or l_state.get("exchanged")
+            if hc and (lc or auto_low) and not already_exchanged:
                 do_exchange(room_id, h, l)
     if all_exchanged(room_id):
         start_playing(room_id)
