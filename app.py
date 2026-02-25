@@ -93,9 +93,18 @@ def new_room(room_id, title, rounds, host_sid):
         "revolution": False,
         "_draw_remaining": None,
         "_draw_confirmed": [],
+        "_draw_cycle": 0,
+        "_draw_finalize_timer": None,
         "trick_pass_target": 0,
         "action_history": [],
     }
+
+
+def _cancel_draw_finalize_timer(room):
+    timer = room.get("_draw_finalize_timer")
+    if timer:
+        timer.cancel()
+    room["_draw_finalize_timer"] = None
 
 
 def _replace_sid_in_list(values, old_sid, new_sid):
@@ -278,21 +287,24 @@ def emit_lobby():
 # ── 뽑기 로직 ───────────────────────────────────────────────
 def start_draw(room_id):
     room = rooms[room_id]
+    _cancel_draw_finalize_timer(room)
     room["state"] = "draw"
     room["draw_results"] = {}
     room["_draw_remaining"] = None
     room["_draw_confirmed"] = []
-    room["_draw_finalize_timer"] = None
+    room["_draw_cycle"] = room.get("_draw_cycle", 0) + 1
     emit_state_all(room_id)
 
-def finalize_draw_to_exchange(room_id):
+def finalize_draw_to_exchange(room_id, draw_cycle):
     room = rooms.get(room_id)
     if not room or room.get("state") != "draw":
+        return
+    if room.get("_draw_cycle") != draw_cycle:
         return
     final_order = room.get("player_order", [])
     if not final_order:
         return
-    room["_draw_finalize_timer"] = None
+    _cancel_draw_finalize_timer(room)
     room["ranks"] = {s: i + 1 for i, s in enumerate(final_order)}
     room["_draw_remaining"] = None
     room["_draw_confirmed"] = []
@@ -321,17 +333,13 @@ def process_draw(room_id):
     if not dup_sids:
         final_order = confirmed + unique_sids
         room["player_order"] = final_order
-        timer = room.get("_draw_finalize_timer")
-        if timer:
-            timer.cancel()
-        room["_draw_finalize_timer"] = threading.Timer(1.6, finalize_draw_to_exchange, args=(room_id,))
+        _cancel_draw_finalize_timer(room)
+        draw_cycle = room.get("_draw_cycle", 0)
+        room["_draw_finalize_timer"] = threading.Timer(1.6, finalize_draw_to_exchange, args=(room_id, draw_cycle))
         room["_draw_finalize_timer"].start()
         emit_state_all(room_id)
     else:
-        timer = room.get("_draw_finalize_timer")
-        if timer:
-            timer.cancel()
-            room["_draw_finalize_timer"] = None
+        _cancel_draw_finalize_timer(room)
         room["_draw_confirmed"] = confirmed + unique_sids
         room["_draw_remaining"] = dup_sids
         room["draw_results"] = {}
@@ -554,6 +562,8 @@ def _handle_leave(sid, room_id):
     if room["host"] == sid and room_players[room_id]:
         room["host"] = room_players[room_id][0]
     if room["state"] not in ("lobby", "game_end"):
+        _cancel_draw_finalize_timer(room)
+        room["_draw_cycle"] = room.get("_draw_cycle", 0) + 1
         room["state"] = "lobby"
         room["hands"] = {}
         room["active_players"] = []
