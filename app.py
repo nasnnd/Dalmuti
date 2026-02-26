@@ -898,6 +898,19 @@ def on_return_to_lobby():
     emit_state_all(room_id)
     emit_lobby()
 
+@socketio.on('return_to_lobby')
+def on_return_to_lobby():
+    sid = request.sid
+    room_id = players.get(sid, {}).get("room")
+    room = rooms.get(room_id)
+    if not room or room.get("state") != "game_end":
+        return
+    room["state"] = "lobby"
+    for s in room_players.get(room_id, []):
+        players[s]["ready"] = False
+    emit_state_all(room_id)
+    emit_lobby()
+
 @socketio.on('next_round_ack')
 def on_next_round_ack():
     sid = request.sid
