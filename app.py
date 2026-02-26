@@ -831,9 +831,27 @@ def on_play_cards(data):
         if len(room["active_players"]) <= 1:
             end_round(room_id)
             return
-
-    room["trick_pass_target"] = compute_trick_pass_target(room)
-    room["current_turn"] = get_next_active(room_id, sid)
+    played_val = resolve_jester(cards)
+    if played_val == 1:
+        def auto_end_dalmuti_trick(rid, leader_sid):
+            room = rooms.get(rid)
+            if not room or room.get("state") != "playing":
+                return
+            if room.get("last_player") != leader_sid:
+                return
+            room["table_cards"] = []
+            room["last_player"] = None
+            room["pass_count"] = 0
+            room["trick_pass_target"] = 0
+            room["current_turn"] = leader_sid if leader_sid in room["active_players"] else get_next_active(rid, leader_sid)
+            add_action_history(room, "👑 달무티 등장! 자동으로 트릭이 종료됩니다.")
+            emit_state_all(rid)
+        t = threading.Timer(2.5, auto_end_dalmuti_trick, args=(room_id, sid))
+        t.daemon = True
+        t.start()
+    else:
+        room["trick_pass_target"] = compute_trick_pass_target(room)
+        room["current_turn"] = get_next_active(room_id, sid)
     emit_state_all(room_id)
 
 @socketio.on('pass_turn')
