@@ -1698,7 +1698,16 @@ function renderGameScreen(state) {
   const mySeatName = me ? String(me.nickname || '').split(' (나)')[0].trim() : '';
 
 const tableHasDalmuti = state.table_cards.some(c => c.num === 1);
-
+  
+if (isMyTurn && !meFinished && tableHasDalmuti) {
+  setTimeout(() => {
+    if (gameState && gameState.current_turn === mySidInState) {
+      showToast('👑 달무티가 나왔습니다! 자동으로 패스합니다.');
+      socket.emit('pass_turn');
+    }
+  }, 500);
+}
+  
 area.innerHTML = `
   <div class="opponents-top">${topHTML}</div>
   <div class="table-row">
@@ -1706,6 +1715,7 @@ area.innerHTML = `
     <div class="game-table" style="position:relative;">
       ${isMyTurn ? '<div class="my-turn-msg">🔥 내 차례입니다! 카드를 내세요</div>' : ''}
       ${tableHasDalmuti ? '<div class="dalmuti-announce">👑 달무티 등장! 👑</div>' : ''}
+      
       <div class="table-cards">${tableHTML}</div>
     </div>
     <div class="table-right-space">${rightHTML}</div>
