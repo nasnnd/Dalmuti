@@ -1351,6 +1351,13 @@ socket.on('state_update', state => {
   prevRoomState = nextState;
   prevRoundNumber = nextRound;
 
+  if (nextState === 'exchange') {
+    closeResultModal(true);
+  }
+
+  prevRoomState = nextState;
+  prevRoundNumber = nextRound;
+
   if (nextState === 'playing') {
     showScreen('game');
     renderGameScreen(state);
@@ -1380,6 +1387,18 @@ function renderRoomScreen(state) {
   } else if (state.state === 'exchange') {
     renderExchange(state, body);
   } else if (state.state === 'round_end' || state.state === 'game_end') {
+    body.innerHTML = `
+      <div class="waiting-room">
+        <div class="player-list-title">
+          ${state.state === 'game_end'
+            ? '🏆 게임이 종료되었습니다.'
+            : `라운드 ${state.current_round} 종료`}
+        </div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:6px;text-align:center">
+          호스트가 다음 라운드를 시작하면 자동으로 진행됩니다.
+        </div>
+      </div>
+    `;
     renderResult(state);
   }
 }
@@ -1537,8 +1556,8 @@ function renderResult(state) {
   }
 }
 
-function closeResultModal() {
-  if (gameState && gameState.state === 'round_end' && gameState.host === mySid) {
+function closeResultModal(force = false) {
+  if (!force && gameState && gameState.state === 'round_end' && gameState.host === mySid) {
     showToast('방장은 "다음 라운드"를 눌러 진행해 주세요.');
     return;
   }
@@ -1549,7 +1568,7 @@ function closeResultModal() {
 }
 function nextRound() {
   socket.emit('next_round_ack');
-  closeResultModal();
+  // 서버 state_update(exchange) 수신 시 자동으로 닫힘
 }
 
 // ══════════════════════════════════════════
@@ -1707,6 +1726,9 @@ function renderGameScreen(state) {
 // 카드 선택
 // ══════════════════════════════════════════
 function toggleCard(cardIdx) {
+  if (!gameState) return;
+  if (gameState.state !== 'exchange' && gameState.state !== 'playing') return;
+
   const selectedIdx = selectedCardIndices.indexOf(cardIdx);
   if (selectedIdx !== -1) {
     selectedCardIndices.splice(selectedIdx, 1);
