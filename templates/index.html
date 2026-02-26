@@ -1002,7 +1002,7 @@
     </div>
     <div class="room-header-right">
       <button class="btn btn-outline btn-sm" id="room-title-edit-btn" style="display:none" onclick="openRoomEdit()">방 설정</button>
-      <button class="btn btn-outline btn-sm" onclick="leaveRoom()">퇴장</button>
+      <button class="btn btn-outline btn-sm" id="room-leave-btn" onclick="leaveRoom()">퇴장</button>
     </div>
   </div>
   <div class="room-body" id="room-body">
@@ -1102,6 +1102,8 @@ let currentRoomId = null;
 let gameState = null;
 let selectedCardIndices = [];
 let handScrollTop = 0;
+let prevRoomState = null;
+let prevRoundNumber = null;
 
 // ══════════════════════════════════════════
 // 유틸
@@ -1331,10 +1333,25 @@ function submitRoomEdit() {
 // 상태 업데이트 메인 핸들러
 // ══════════════════════════════════════════
 socket.on('state_update', state => {
+  const nextState = state.state;
+  const nextRound = Number.isInteger(state.current_round) ? state.current_round : null;
+  const stateChanged = prevRoomState !== nextState;
+  const roundChanged = prevRoundNumber !== null && nextRound !== null && prevRoundNumber !== nextRound;
+
+  // 라운드/페이즈 전환 시 이전 선택 상태가 남아 다음 페이즈 입력을 막지 않도록 초기화
+  if (stateChanged || roundChanged) {
+    selectedCardIndices = [];
+    if (nextState !== 'playing') {
+      handScrollTop = 0;
+    }
+  }
+
   mySid = state.my_sid || mySid;
   gameState = state;
+  prevRoomState = nextState;
+  prevRoundNumber = nextRound;
 
-  if (state.state === 'playing') {
+  if (nextState === 'playing') {
     showScreen('game');
     renderGameScreen(state);
   } else {
@@ -1348,10 +1365,12 @@ socket.on('state_update', state => {
 // ══════════════════════════════════════════
 function renderRoomScreen(state) {
   const isHost = state.host === mySid;
+  const inLobby = state.state === 'lobby';
   document.getElementById('room-header-title').textContent = state.title;
   document.getElementById('room-header-meta').textContent =
     `${state.rounds}라운드 · ${state.players.length}명`;
-  document.getElementById('room-title-edit-btn').style.display = isHost ? '' : 'none';
+  document.getElementById('room-title-edit-btn').style.display = (isHost && inLobby) ? '' : 'none';
+  document.getElementById('room-leave-btn').style.display = inLobby ? '' : 'none';
 
   const body = document.getElementById('room-body');
   if (state.state === 'lobby') {
