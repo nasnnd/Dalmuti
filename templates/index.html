@@ -1076,7 +1076,7 @@
     <div class="modal-title" id="result-modal-title">라운드 결과</div>
     <div class="modal-body" id="result-modal-body"></div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="closeResultModal()">닫기</button>
+      <button class="btn btn-outline" id="result-close-btn" onclick="closeResultModal()">닫기</button>
       <button class="btn btn-gold" id="result-next-btn" style="display:none" onclick="nextRound()">다음 라운드</button>
     </div>
   </div>
@@ -1526,15 +1526,22 @@ function renderResult(state) {
   `;
 
   const nextBtn = document.getElementById('result-next-btn');
+  const closeBtn = document.getElementById('result-close-btn');
   if (!isGameEnd && isHost) {
+    closeBtn.style.display = 'none';
     nextBtn.style.display = '';
     nextBtn.textContent = '다음 라운드';
   } else {
+    closeBtn.style.display = '';
     nextBtn.style.display = 'none';
   }
 }
 
 function closeResultModal() {
+  if (gameState && gameState.state === 'round_end' && gameState.host === mySid) {
+    showToast('방장은 "다음 라운드"를 눌러 진행해 주세요.');
+    return;
+  }
   if (gameState && gameState.state === 'game_end') {
     socket.emit('return_to_lobby');
   }
@@ -1623,9 +1630,8 @@ function renderGameScreen(state) {
   const area = document.getElementById('game-area');
 
   // ── 좌석 배치 계산 ──
-  // 내 좌석은 하단 my-area에서만 렌더하고, 테이블 주변 좌석에는 제외
-  const others = players.filter(p => p.sid !== mySidInState);
-  const { top, bottom, right } = calcSeatLayout(others);
+  // 모든 플레이어가 같은 테이블 네임카드 배치를 보도록 전체 플레이어 기준으로 배치
+  const { top, bottom, right } = calcSeatLayout(players);
 
   const topHTML    = top.map(p => oppCardHTML(p, state)).join('');
   const bottomHTML = bottom.map(p => oppCardHTML(p, state)).join('');
