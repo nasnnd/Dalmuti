@@ -148,6 +148,13 @@ def _migrate_player(old_sid, new_sid, token):
         join_room(room_id)
         emit_state_all(room_id)
 
+    # 세션 최신 sid를 먼저 확정하고, 이전 sid 소켓은 더 이상 이벤트를 못 보내게 정리
+    if token:
+        sessions[token] = new_sid
+    try:
+        socketio.server.disconnect(old_sid)
+    except Exception:
+        pass
     players.pop(old_sid, None)
 
 # ── 상태 브로드캐스트 ────────────────────────────────────────
@@ -526,6 +533,11 @@ def on_disconnect():
     sid = request.sid
     token = players.get(sid, {}).get("token")
 
+    # 이미 토큰의 최신 sid가 다른 곳으로 마이그레이션된 경우, old sid disconnect는 무시
+    if token and sessions.get(token) != sid:
+        players.pop(sid, None)
+        return
+
     if token:
         def delayed_cleanup():
             latest_sid = sessions.get(token)
@@ -579,6 +591,8 @@ def _handle_leave(sid, room_id):
 @socketio.on('set_nickname')
 def on_set_nickname(data):
     sid = request.sid
+    if sid not in players:
+        return
     nick = str(data.get('nickname', '')).strip()
     if 2 <= len(nick) <= 10:
         players[sid]['nickname'] = nick
@@ -870,6 +884,19 @@ def on_pass_turn():
         room["current_turn"] = next_sid
 
     emit_state_all(room_id)
+
+@socketio.on('return_to_lobby')
+def on_return_to_lobby():
+    sid = request.sid
+    room_id = players.get(sid, {}).get("room")
+    room = rooms.get(room_id)
+    if not room or room.get("state") != "game_end":
+        return
+    room["state"] = "lobby"
+    for s in room_players.get(room_id, []):
+        players[s]["ready"] = False
+    emit_state_all(room_id)
+    emit_lobby()
 
 @socketio.on('return_to_lobby')
 def on_return_to_lobby():

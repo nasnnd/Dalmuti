@@ -1351,6 +1351,10 @@ socket.on('state_update', state => {
   prevRoomState = nextState;
   prevRoundNumber = nextRound;
 
+  if (nextState === 'lobby') {
+    closeResultModal(true);
+  }
+
   if (nextState === 'exchange') {
     closeResultModal(true);
   }
@@ -1794,7 +1798,7 @@ socket.on('info_msg', data => showToast('ℹ️ ' + data.message, 3200));
 
 socket.on('game_interrupted', data => {
   showToast(data.message, 4000);
-  closeResultModal();
+  closeResultModal(true);
 });
 
 socket.on('revolution_alert', data => {
