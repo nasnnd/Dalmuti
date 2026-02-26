@@ -751,11 +751,7 @@ def on_exchange_confirm():
         return
     exch = room["exchange_state"].get(sid, {})
     if exch.get("auto") is True:
-        auto_sel = sorted(room["hands"].get(sid, []))[:2]
-        if len(auto_sel) != 2:
-            emit('error_msg', {'message': '교환 가능한 카드가 부족합니다.'})
-            return
-        exch["selected"] = auto_sel
+        return
     elif exch.get("auto") is False and len(exch.get("selected", [])) != 2:
         emit('error_msg', {'message': '카드 2장을 선택하세요.'})
         return
@@ -884,19 +880,6 @@ def on_pass_turn():
         room["current_turn"] = next_sid
 
     emit_state_all(room_id)
-
-@socketio.on('return_to_lobby')
-def on_return_to_lobby():
-    sid = request.sid
-    room_id = players.get(sid, {}).get("room")
-    room = rooms.get(room_id)
-    if not room or room.get("state") != "game_end":
-        return
-    room["state"] = "lobby"
-    for s in room_players.get(room_id, []):
-        players[s]["ready"] = False
-    emit_state_all(room_id)
-    emit_lobby()
 
 @socketio.on('return_to_lobby')
 def on_return_to_lobby():
