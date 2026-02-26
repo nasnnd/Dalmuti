@@ -786,7 +786,6 @@ def on_revolution():
     order.reverse()
     room["player_order"] = order
     room["ranks"] = {s: i + 1 for i, s in enumerate(order)}
-    room["turn_direction"] = -room.get("turn_direction", 1)
     room["revolution"] = True
     room["can_revolution"] = False
     compute_exchange_pairs(room_id)
