@@ -97,3 +97,5 @@ return `<div class="${cls}" ...>
 ```
 
 `static/cards/` 폴더에 `1.png` ~ `13.png` 파일을 넣으면 됩니다.
+
+---
