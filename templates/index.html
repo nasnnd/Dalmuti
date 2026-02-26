@@ -8,6 +8,7 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
+  
   :root {
     --bg: #1a1210;
     --surface: #251916;
@@ -509,6 +510,19 @@
     white-space: nowrap;
     animation: pulse 1.2s ease-in-out infinite;
   }
+    .dalmuti-play {
+  color: var(--gold-light) !important;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(201,168,76,0.6);
+}
+.dalmuti-announce {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-light);
+  text-shadow: 0 0 12px rgba(201,168,76,0.8);
+  letter-spacing: 1px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
   @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.6; }
@@ -1670,7 +1684,7 @@ function renderGameScreen(state) {
     : `<div class="table-msg">낸 카드가 없습니다</div>`;
 
   const historyHTML = (state.action_history || []).length
-    ? [...state.action_history].slice(-3).reverse().map(msg => `<div class="action-history-item">• ${escHtml(msg)}</div>`).join('')
+    ? [...state.action_history].slice(-3).reverse().map(msg => `<div class="action-history-item ${msg.includes('달무티') ? 'dalmuti-play' : ''}">• ${escHtml(msg)}</div>`).join('')
     : `<div class="action-history-item">아직 기록이 없습니다.</div>`;
 
   // ── 내 손패 ──
@@ -1683,16 +1697,19 @@ function renderGameScreen(state) {
   ).join('');
   const mySeatName = me ? String(me.nickname || '').split(' (나)')[0].trim() : '';
 
-  area.innerHTML = `
-    <div class="opponents-top">${topHTML}</div>
-    <div class="table-row">
-      <div class="table-left-space"></div>
-      <div class="game-table" style="position:relative;">
-        ${isMyTurn ? '<div class="my-turn-msg">🔥 내 차례입니다! 카드를 내세요</div>' : ''}
-        <div class="table-cards">${tableHTML}</div>
-      </div>
-      <div class="table-right-space">${rightHTML}</div>
+const tableHasDalmuti = state.table_cards.some(c => c.num === 1);
+
+area.innerHTML = `
+  <div class="opponents-top">${topHTML}</div>
+  <div class="table-row">
+    <div class="table-left-space"></div>
+    <div class="game-table" style="position:relative;">
+      ${isMyTurn ? '<div class="my-turn-msg">🔥 내 차례입니다! 카드를 내세요</div>' : ''}
+      ${tableHasDalmuti ? '<div class="dalmuti-announce">👑 달무티 등장! 👑</div>' : ''}
+      <div class="table-cards">${tableHTML}</div>
     </div>
+    <div class="table-right-space">${rightHTML}</div>
+  </div>
     <div class="opponents-bottom">${bottomHTML}</div>
     <div class="action-history">
       <div class="action-history-title">최근 행동</div>
